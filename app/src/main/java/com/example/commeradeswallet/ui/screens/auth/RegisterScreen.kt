@@ -19,16 +19,65 @@ import androidx.compose.ui.unit.sp
 import com.example.commeradeswallet.R
 import com.example.commeradeswallet.ui.preview.PreviewWrapper
 import com.example.commeradeswallet.ui.preview.ThemePreviews
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.material3.Text
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.Color
+import com.example.commeradeswallet.ui.viewmodel.AuthViewModel
+import com.example.commeradeswallet.ui.viewmodel.AuthViewModelFactory
+import android.util.Log
 
 @Composable
 fun RegisterScreen(
     onNavigateToLogin: () -> Unit,
-    onNavigateToHome: () -> Unit
+    onNavigateToHome: () -> Unit,
+    viewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(LocalContext.current))
 ) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var nameError by remember { mutableStateOf<String?>(null) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
+    var confirmPasswordError by remember { mutableStateOf<String?>(null) }
+
+    val state by viewModel.state.collectAsState()
+
+    LaunchedEffect(state.isSignInSuccessful) {
+        Log.d("RegisterScreen", "Sign in state changed: ${state.isSignInSuccessful}")
+        if (state.isSignInSuccessful) {
+            Log.d("RegisterScreen", "Navigation should happen now")
+            onNavigateToHome()
+        }
+    }
+
+    fun validateInput(): Boolean {
+        var isValid = true
+        
+        if (name.isBlank()) {
+            nameError = "Name is required"
+            isValid = false
+        }
+        
+        if (email.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            emailError = "Please enter a valid email address"
+            isValid = false
+        }
+        
+        if (password.length < 6) {
+            passwordError = "Password must be at least 6 characters"
+            isValid = false
+        }
+        
+        if (password != confirmPassword) {
+            confirmPasswordError = "Passwords do not match"
+            isValid = false
+        }
+        
+        return isValid
+    }
 
     Column(
         modifier = Modifier
@@ -140,17 +189,40 @@ fun RegisterScreen(
         )
 
         Button(
-            onClick = { onNavigateToHome() },
+            onClick = {
+                if (validateInput()) {
+                    Log.d("RegisterScreen", "Attempting to register user: $email")
+                    viewModel.register(name, email, password)
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
                 .height(50.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
+            shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Sign Up", fontSize = 16.sp)
+            if (state.isLoading) {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(24.dp)
+                )
+            } else {
+                Text("Sign Up", fontSize = 16.sp)
+            }
+        }
+
+        // Show error dialog if needed
+        if (state.signInError != null) {
+            AlertDialog(
+                onDismissRequest = { viewModel.resetState() },
+                title = { Text("Error") },
+                text = { Text(state.signInError!!) },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.resetState() }) {
+                        Text("OK")
+                    }
+                }
+            )
         }
 
         Spacer(modifier = Modifier.weight(1f))

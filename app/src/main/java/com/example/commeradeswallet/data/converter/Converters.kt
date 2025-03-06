@@ -1,36 +1,47 @@
 package com.example.commeradeswallet.data.converter
 
 import androidx.room.TypeConverter
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
+import com.example.commeradeswallet.data.model.CartItem
+import com.example.commeradeswallet.data.model.OrderStatus
+import com.example.commeradeswallet.data.model.TransactionType
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.example.commeradeswallet.data.model.CartItem
-import com.example.commeradeswallet.data.model.TransactionType
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import com.example.commeradeswallet.data.model.TransactionStatus
 
 class Converters {
-    private val formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
+    private val gson = Gson()
 
     @TypeConverter
-    fun fromTimestamp(value: String?): LocalDateTime? {
-        return value?.let { LocalDateTime.parse(it, formatter) }
+    fun fromTimestamp(value: Long?): LocalDateTime? {
+        return value?.let { LocalDateTime.ofEpochSecond(it, 0, ZoneOffset.UTC) }
     }
 
     @TypeConverter
-    fun dateToTimestamp(date: LocalDateTime?): String? {
-        return date?.format(formatter)
+    fun dateToTimestamp(date: LocalDateTime?): Long? {
+        return date?.toEpochSecond(ZoneOffset.UTC)
     }
 
     @TypeConverter
-    fun fromCartItems(value: String): List<CartItem> {
-        val type = object : TypeToken<List<CartItem>>() {}.type
-        return Gson().fromJson(value, type)
+    fun fromCartItemList(value: List<CartItem>): String {
+        return gson.toJson(value)
     }
 
     @TypeConverter
-    fun cartItemsToString(items: List<CartItem>): String {
-        return Gson().toJson(items)
+    fun toCartItemList(value: String): List<CartItem> {
+        val listType = object : TypeToken<List<CartItem>>() {}.type
+        return gson.fromJson(value, listType)
+    }
+
+    @TypeConverter
+    fun fromOrderStatus(value: OrderStatus): String {
+        return value.name
+    }
+
+    @TypeConverter
+    fun toOrderStatus(value: String): OrderStatus {
+        return OrderStatus.valueOf(value)
     }
 
     @TypeConverter

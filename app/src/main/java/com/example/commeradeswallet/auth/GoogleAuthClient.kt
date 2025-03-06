@@ -22,7 +22,7 @@ class GoogleAuthClient(
     private val context: Context
 ) {
     private val oneTapClient: SignInClient = Identity.getSignInClient(context)
-    private var auth: FirebaseAuth? = null
+    private val auth: FirebaseAuth = Firebase.auth
 
     init {
         try {
@@ -30,33 +30,19 @@ class GoogleAuthClient(
             if (FirebaseApp.getApps(context).isEmpty()) {
                 FirebaseApp.initializeApp(context)
             }
-            auth = Firebase.auth
             Log.d("GoogleAuthClient", "Firebase Auth initialized successfully")
         } catch (e: Exception) {
             Log.e("GoogleAuthClient", "Failed to initialize Firebase Auth", e)
         }
     }
 
-    fun getSignedInUser(): UserData? {
-        if (auth == null) {
-            try {
-                if (FirebaseApp.getApps(context).isEmpty()) {
-                    FirebaseApp.initializeApp(context)
-                }
-                auth = Firebase.auth
-            } catch (e: Exception) {
-                Log.e("GoogleAuthClient", "Failed to initialize Firebase Auth", e)
-                return null
-            }
-        }
-        return auth?.currentUser?.run {
-            UserData(
-                userId = uid,
-                username = displayName ?: "",
-                email = email ?: "",
-                profilePictureUrl = photoUrl?.toString()
-            )
-        }
+    fun getSignedInUser(): UserData? = auth.currentUser?.run {
+        UserData(
+            userId = uid,
+            username = displayName ?: "",
+            email = email ?: "",
+            profilePictureUrl = photoUrl?.toString()
+        )
     }
 
     suspend fun signIn(): IntentSender? {
@@ -66,7 +52,7 @@ class GoogleAuthClient(
                 buildSignInRequest()
             ).await()
             Log.d("GoogleAuthClient", "Sign in intent created successfully")
-            return result?.pendingIntent?.intentSender
+            return result.pendingIntent.intentSender
         } catch (e: Exception) {
             Log.e("GoogleAuthClient", "Error during sign in", e)
             if (e is CancellationException) throw e
@@ -90,7 +76,7 @@ class GoogleAuthClient(
 
             Log.d("GoogleAuthClient", "Got Google ID token, authenticating with Firebase")
             val googleCredentials = GoogleAuthProvider.getCredential(googleIdToken, null)
-            val result = auth?.signInWithCredential(googleCredentials)?.await()
+            val result = auth.signInWithCredential(googleCredentials)?.await()
                 ?: return SignInResult(
                     data = null,
                     errorMessage = "Sign in failed - auth is null"
@@ -121,7 +107,7 @@ class GoogleAuthClient(
     suspend fun signOut() {
         try {
             oneTapClient.signOut().await()
-            auth?.signOut()
+            auth.signOut()
         } catch(e: Exception) {
             e.printStackTrace()
             if(e is CancellationException) throw e

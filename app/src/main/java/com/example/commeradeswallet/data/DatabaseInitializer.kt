@@ -1,16 +1,33 @@
 package com.example.commeradeswallet.data
 
 import android.content.Context
+import android.util.Log
 import androidx.startup.Initializer
 import com.example.commeradeswallet.data.model.FoodItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import com.example.commeradeswallet.ui.navigation.NavGraph
 
 class DatabaseInitializer : Initializer<AppDatabase> {
     override fun create(context: Context): AppDatabase {
-        return AppDatabase.getDatabase(context)
+        val database = AppDatabase.getDatabase(context)
+        
+        // Initialize database with food items
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val foodDao = database.foodDao()
+                // Check if data already exists
+                if (foodDao.getFoodItemCount() == 0) {
+                    Log.d("DatabaseInitializer", "Inserting initial food items")
+                    foodDao.insertAll(initialFoodItems)
+                }
+            } catch (e: Exception) {
+                Log.e("DatabaseInitializer", "Error initializing database", e)
+            }
+        }
+        
+        return database
     }
 
     override fun dependencies(): List<Class<out Initializer<*>>> {

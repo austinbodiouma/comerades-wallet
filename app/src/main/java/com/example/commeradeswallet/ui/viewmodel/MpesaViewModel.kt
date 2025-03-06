@@ -3,7 +3,6 @@ package com.example.commeradeswallet.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.commeradeswallet.data.dao.WalletDao
-import com.example.commeradeswallet.data.model.TransactionStatus
 import com.example.commeradeswallet.data.model.TransactionType
 import com.example.commeradeswallet.data.model.WalletTransaction
 import com.example.commeradeswallet.data.repository.MpesaRepository
@@ -19,7 +18,7 @@ class MpesaViewModel(
     private val _transactionState = MutableStateFlow<TransactionState>(TransactionState.Idle)
     val transactionState: StateFlow<TransactionState> = _transactionState
 
-    fun initiatePayment(phoneNumber: String, amount: Int) {
+    fun initiatePayment(phoneNumber: String, amount: Int, userId: String) {
         viewModelScope.launch {
             _transactionState.value = TransactionState.Processing
 
@@ -28,6 +27,7 @@ class MpesaViewModel(
                     .onSuccess { checkoutRequestId ->
                         // Save pending transaction
                         val transaction = WalletTransaction(
+                            userId = userId,
                             amount = amount.toDouble(),
                             type = TransactionType.DEPOSIT,
                             description = "M-Pesa Top-up",
@@ -55,17 +55,17 @@ class MpesaViewModel(
                 mpesaRepository.checkTransactionStatus(checkoutRequestId)
                     .onSuccess { success ->
                         if (success) {
-                            walletDao.updateTransactionStatus(checkoutRequestId, TransactionStatus.COMPLETED)
+                            walletDao.updateTransactionStatus(checkoutRequestId, "COMPLETED")
                             _transactionState.value = TransactionState.Completed
                             return@launch
                         } else if (attempt == 5) { // Last attempt
-                            walletDao.updateTransactionStatus(checkoutRequestId, TransactionStatus.FAILED)
+                            walletDao.updateTransactionStatus(checkoutRequestId, "FAILED")
                             _transactionState.value = TransactionState.Failed("Transaction timed out")
                         }
                     }
                     .onFailure { error ->
                         if (attempt == 5) { // Last attempt
-                            walletDao.updateTransactionStatus(checkoutRequestId, TransactionStatus.FAILED)
+                            walletDao.updateTransactionStatus(checkoutRequestId, "FAILED")
                             _transactionState.value = TransactionState.Failed(error.message ?: "Transaction failed")
                         }
                     }

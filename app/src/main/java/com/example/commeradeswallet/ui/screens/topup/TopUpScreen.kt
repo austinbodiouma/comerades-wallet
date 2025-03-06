@@ -1,312 +1,201 @@
 package com.example.commeradeswallet.ui.screens.topup
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.commeradeswallet.ui.preview.PreviewWrapper
 import com.example.commeradeswallet.ui.preview.ThemePreviews
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalInspectionMode
+import com.example.commeradeswallet.util.format
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TopUpScreen(
     onNavigateBack: () -> Unit,
-    viewModel: TopUpViewModel = viewModel(
-        factory = if (LocalInspectionMode.current) {
-            TopUpViewModel.Factory
-        } else {
-            TopUpViewModelFactory(LocalContext.current)
-        }
-    )
+    modifier: Modifier = Modifier,
+    viewModel: TopUpViewModel = viewModel(factory = TopUpViewModelFactory(LocalContext.current))
 ) {
-    var phoneNumber by remember { mutableStateOf("") }
-    var amount by remember { mutableStateOf("") }
-    
-    val uiState by viewModel.uiState.collectAsState()
+    val state by viewModel.state.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Top Up Wallet") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Header Card
-            ElevatedCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        modifier = Modifier.size(40.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        "M-Pesa Top Up",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        "Enter your details below to top up your wallet using M-Pesa",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            // Input Fields Card
-            ElevatedCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // Phone Number Input
-                    OutlinedTextField(
-                        value = phoneNumber,
-                        onValueChange = { phoneNumber = it },
-                        label = { Text("Phone Number") },
-                        placeholder = { Text("e.g., 0712345678") },
-                        leadingIcon = { 
-                            Icon(
-                                Icons.Default.Phone,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                        enabled = uiState !is TopUpUiState.Loading,
-                        supportingText = { Text("Enter your M-Pesa registered phone number") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            focusedLabelColor = MaterialTheme.colorScheme.primary
-                        )
-                    )
-
-                    // Amount Input
-                    OutlinedTextField(
-                        value = amount,
-                        onValueChange = { amount = it },
-                        label = { Text("Amount (KES)") },
-                        placeholder = { Text("Enter amount") },
-                        leadingIcon = { 
-                            Icon(
-                                Icons.Default.MoreVert,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        enabled = uiState !is TopUpUiState.Loading,
-                        supportingText = { Text("Minimum amount: KES 1") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            focusedLabelColor = MaterialTheme.colorScheme.primary
-                        )
-                    )
-                }
-            }
-
-            // Status Messages
-            when (uiState) {
-                is TopUpUiState.Error -> {
-                    ErrorCard(message = (uiState as TopUpUiState.Error).message)
-                }
-                is TopUpUiState.PushSuccessful -> {
-                    ProcessingCard()
-                }
-                is TopUpUiState.TransactionComplete -> {
-                    val state = uiState as TopUpUiState.TransactionComplete
-                    TransactionCompleteCard(state)
-                }
-                else -> {}
-            }
-
-            // Top Up Button
-            Button(
-                onClick = { viewModel.initiateTopUp(phoneNumber, amount) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .height(56.dp),
-                enabled = uiState !is TopUpUiState.Loading && 
-                         uiState !is TopUpUiState.PushSuccessful,
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                )
-            ) {
-                if (uiState is TopUpUiState.Loading) {
-                    CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                } else {
-                    Text(
-                        "Top Up",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-    }
+    TopUpContent(
+        amount = state.amount,
+        phoneNumber = state.phoneNumber,
+        isLoading = state.isLoading,
+        error = state.error,
+        success = state.success,
+        currentBalance = state.currentBalance,
+        onAmountChange = viewModel::onAmountChange,
+        onPhoneNumberChange = viewModel::onPhoneNumberChange,
+        onTopUp = viewModel::initiateTopUp,
+        onRetry = viewModel::resetState,
+        onNavigateBack = onNavigateBack,
+        modifier = modifier
+    )
 }
 
 @Composable
-private fun ErrorCard(message: String) {
-    ElevatedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer
-        )
+fun TopUpContent(
+    amount: String,
+    phoneNumber: String,
+    isLoading: Boolean,
+    error: String?,
+    success: Boolean,
+    currentBalance: Double,
+    onAmountChange: (String) -> Unit,
+    onPhoneNumberChange: (String) -> Unit,
+    onTopUp: () -> Unit,
+    onRetry: () -> Unit,
+    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Default.Warning,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error
-            )
-            Text(
-                message,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-                style = MaterialTheme.typography.bodyMedium
+        Text(
+            text = "Top Up Wallet",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        Text(
+            text = "Current Balance: KES ${currentBalance.format(2)}",
+            fontSize = 16.sp,
+            modifier = Modifier.padding(bottom = 24.dp)
+        )
+
+        if (success) {
+            SuccessScreen(onNavigateBack)
+        } else if (error != null) {
+            ErrorScreen(error, onRetry)
+        } else {
+            TopUpForm(
+                amount = amount,
+                phoneNumber = phoneNumber,
+                isLoading = isLoading,
+                onAmountChange = onAmountChange,
+                onPhoneNumberChange = onPhoneNumberChange,
+                onTopUp = onTopUp
             )
         }
     }
 }
 
 @Composable
-private fun ProcessingCard() {
-    ElevatedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+fun TopUpForm(
+    amount: String,
+    phoneNumber: String,
+    isLoading: Boolean,
+    onAmountChange: (String) -> Unit,
+    onPhoneNumberChange: (String) -> Unit,
+    onTopUp: () -> Unit
+) {
+    Column {
+        OutlinedTextField(
+            value = amount,
+            onValueChange = onAmountChange,
+            label = { Text("Amount (KES)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth()
         )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = phoneNumber,
+            onValueChange = onPhoneNumberChange,
+            label = { Text("Phone Number") },
+            placeholder = { Text("e.g. 254712345678") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = onTopUp,
+            enabled = !isLoading && amount.isNotEmpty() && phoneNumber.isNotEmpty(),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            if (isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp),
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
-                Text(
-                    "Processing Payment",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+            } else {
+                Text("Top Up")
             }
-            Text(
-                "Please check your phone for the M-Pesa prompt",
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-            LinearProgressIndicator(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.primary
-            )
         }
     }
 }
 
 @Composable
-private fun TransactionCompleteCard(state: TopUpUiState.TransactionComplete) {
-    ElevatedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = if (state.success) 
-                MaterialTheme.colorScheme.primaryContainer 
-            else 
-                MaterialTheme.colorScheme.errorContainer
-        )
+fun ErrorScreen(
+    error: String,
+    onRetry: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxSize()
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                if (state.success) Icons.Default.CheckCircle else Icons.Default.Warning,
-                contentDescription = null,
-                tint = if (state.success) 
-                    MaterialTheme.colorScheme.primary 
-                else 
-                    MaterialTheme.colorScheme.error
-            )
-            Text(
-                state.message,
-                color = if (state.success) 
-                    MaterialTheme.colorScheme.onPrimaryContainer 
-                else 
-                    MaterialTheme.colorScheme.onErrorContainer
-            )
+        Text(
+            text = "Error",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Text(
+            text = error,
+            textAlign = TextAlign.Center
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Button(onClick = onRetry) {
+            Text("Try Again")
+        }
+    }
+}
+
+@Composable
+fun SuccessScreen(
+    onNavigateBack: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Text(
+            text = "Top Up Initiated",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Text(
+            text = "Your top up request has been initiated. Please check your phone for the M-Pesa payment prompt and enter your PIN to complete the transaction.",
+            textAlign = TextAlign.Center
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Button(onClick = onNavigateBack) {
+            Text("Back to Wallet")
         }
     }
 }
@@ -315,83 +204,58 @@ private fun TransactionCompleteCard(state: TopUpUiState.TransactionComplete) {
 @Composable
 private fun TopUpScreenPreview() {
     PreviewWrapper {
-        TopUpScreen(
-            onNavigateBack = {},
-            viewModel = viewModel(
-                factory = if (LocalInspectionMode.current) {
-                    TopUpViewModel.Factory
-                } else {
-                    TopUpViewModelFactory(LocalContext.current)
-                }
-            )
+        TopUpContent(
+            amount = "500",
+            phoneNumber = "254712345678",
+            isLoading = false,
+            error = null,
+            success = false,
+            currentBalance = 1250.0,
+            onAmountChange = {},
+            onPhoneNumberChange = {},
+            onTopUp = {},
+            onRetry = {},
+            onNavigateBack = {}
         )
     }
 }
 
 @ThemePreviews
 @Composable
-private fun TopUpScreenStatesPreview() {
+private fun TopUpSuccessPreview() {
     PreviewWrapper {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Error State
-            ElevatedCard {
-                Text(
-                    "Error State:",
-                    modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.titleSmall
-                )
-                TopUpScreen(
-                    onNavigateBack = {},
-                    viewModel = viewModel(
-                        factory = if (LocalInspectionMode.current) {
-                            TopUpViewModel.Factory
-                        } else {
-                            TopUpViewModelFactory(LocalContext.current)
-                        }
-                    )
-                )
-            }
+        TopUpContent(
+            amount = "500",
+            phoneNumber = "254712345678",
+            isLoading = false,
+            error = null,
+            success = true,
+            currentBalance = 1250.0,
+            onAmountChange = {},
+            onPhoneNumberChange = {},
+            onTopUp = {},
+            onRetry = {},
+            onNavigateBack = {}
+        )
+    }
+}
 
-            // Processing State
-            ElevatedCard {
-                Text(
-                    "Processing State:",
-                    modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.titleSmall
-                )
-                TopUpScreen(
-                    onNavigateBack = {},
-                    viewModel = viewModel(
-                        factory = if (LocalInspectionMode.current) {
-                            TopUpViewModel.Factory
-                        } else {
-                            TopUpViewModelFactory(LocalContext.current)
-                        }
-                    )
-                )
-            }
-
-            // Success State
-            ElevatedCard {
-                Text(
-                    "Success State:",
-                    modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.titleSmall
-                )
-                TopUpScreen(
-                    onNavigateBack = {},
-                    viewModel = viewModel(
-                        factory = if (LocalInspectionMode.current) {
-                            TopUpViewModel.Factory
-                        } else {
-                            TopUpViewModelFactory(LocalContext.current)
-                        }
-                    )
-                )
-            }
-        }
+@ThemePreviews
+@Composable
+private fun TopUpErrorPreview() {
+    PreviewWrapper {
+        TopUpContent(
+            amount = "500",
+            phoneNumber = "254712345678",
+            isLoading = false,
+            error = "Failed to initiate payment. Please try again later.",
+            success = false,
+            currentBalance = 1250.0,
+            onAmountChange = {},
+            onPhoneNumberChange = {},
+            onTopUp = {},
+            onRetry = {},
+            onNavigateBack = {}
+        )
     }
 } 

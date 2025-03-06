@@ -1,22 +1,47 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "dummy-project",
-    "storage_bucket": "dummy-project.appspot.com"
+    "project_number": "207405274264",
+    "project_id": "commerades-wallet",
+    "storage_bucket": "commerades-wallet.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+        "mobilesdk_app_id": "1:207405274264:android:ebf73caecf395273066ced",
         "android_client_info": {
           "package_name": "com.example.commeradeswallet"
         }
       },
+      "oauth_client": [
+        {
+          "client_id": "207405274264-7urbkuelpdd0kn8hticfiiu997l7scdj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.commeradeswallet",
+            "certificate_hash": "1126a477b74a30929eafe15bcd6433951c566f14"
+          }
+        },
+        {
+          "client_id": "207405274264-fif1i3d3980282khh80tls75vgfmlib9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "dummy_key"
+          "current_key": "AIzaSyAeHUhwL5K9pcft_0XV1poh6Trv2x6MhQc"
         }
-      ]
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "207405274264-fif1i3d3980282khh80tls75vgfmlib9.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
     }
-  ]
-} 
+  ],
+  "configuration_version": "1"
+}

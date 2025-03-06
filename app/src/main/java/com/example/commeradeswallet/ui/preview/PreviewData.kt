@@ -48,6 +48,7 @@ object PreviewData {
     val sampleTransactions = listOf(
         WalletTransaction(
             id = 1,
+            userId = "preview_user_id",
             amount = 500.0,
             type = TransactionType.DEPOSIT,
             description = "M-Pesa Top-up",
@@ -56,6 +57,7 @@ object PreviewData {
         ),
         WalletTransaction(
             id = 2,
+            userId = "preview_user_id",
             amount = 150.0,
             type = TransactionType.WITHDRAWAL,
             description = "Food Order #ABC123",
@@ -63,6 +65,7 @@ object PreviewData {
         ),
         WalletTransaction(
             id = 3,
+            userId = "preview_user_id",
             amount = 1000.0,
             type = TransactionType.DEPOSIT,
             description = "M-Pesa Top-up",

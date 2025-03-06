@@ -1,8 +1,6 @@
 package com.example.commeradeswallet.data.dao
 
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.Query
+import androidx.room.*
 import com.example.commeradeswallet.data.model.FoodItem
 import kotlinx.coroutines.flow.Flow
 
@@ -17,9 +15,18 @@ interface FoodDao {
     @Query("SELECT * FROM food_items WHERE name LIKE '%' || :query || '%'")
     fun searchFoodItems(query: String): Flow<List<FoodItem>>
 
-    @Insert
-    suspend fun insertAll(foodItems: List<FoodItem>)
-
     @Query("SELECT COUNT(*) FROM food_items")
     suspend fun getFoodItemCount(): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(foodItems: List<FoodItem>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(foodItem: FoodItem)
+
+    @Update
+    suspend fun update(foodItem: FoodItem)
+
+    @Delete
+    suspend fun delete(foodItem: FoodItem)
 } 

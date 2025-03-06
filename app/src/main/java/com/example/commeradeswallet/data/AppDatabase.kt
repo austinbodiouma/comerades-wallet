@@ -7,31 +7,31 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.example.commeradeswallet.data.dao.FoodDao
-import com.example.commeradeswallet.data.dao.WalletDao
 import com.example.commeradeswallet.data.dao.OrderDao
 import com.example.commeradeswallet.data.dao.UserDao
+import com.example.commeradeswallet.data.dao.WalletDao
 import com.example.commeradeswallet.data.model.FoodItem
-import com.example.commeradeswallet.data.model.WalletTransaction
 import com.example.commeradeswallet.data.model.Order
 import com.example.commeradeswallet.data.model.User
+import com.example.commeradeswallet.data.model.WalletTransaction
 import com.example.commeradeswallet.data.converter.Converters
 
 @Database(
     entities = [
-        WalletTransaction::class,
         FoodItem::class,
+        Order::class,
         User::class,
-        Order::class
+        WalletTransaction::class
     ],
     version = 1,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
-    abstract fun walletDao(): WalletDao
+    abstract fun foodDao(): FoodDao
     abstract fun orderDao(): OrderDao
     abstract fun userDao(): UserDao
-    abstract fun foodDao(): FoodDao
+    abstract fun walletDao(): WalletDao
 
     companion object {
         @Volatile

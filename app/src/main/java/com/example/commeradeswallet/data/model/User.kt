@@ -5,11 +5,12 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "users")
 data class User(
-    @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
+    @PrimaryKey
+    val id: String = "",
     val email: String,
     val password: String, // This should be hashed
     val name: String? = null,
+    val phoneNumber: String? = null,
     val authProvider: String = "EMAIL", // EMAIL or GOOGLE
     val googleUserId: String? = null
 ) 

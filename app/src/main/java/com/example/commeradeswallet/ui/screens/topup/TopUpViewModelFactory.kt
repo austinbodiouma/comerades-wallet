@@ -5,21 +5,22 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.example.commeradeswallet.data.AppDatabase
 import com.example.commeradeswallet.data.repository.MpesaRepository
-import com.example.commeradeswallet.ui.viewmodel.MpesaViewModel
+import com.example.commeradeswallet.data.repository.WalletRepository
+import com.google.firebase.firestore.FirebaseFirestore
 
 class TopUpViewModelFactory(private val context: Context) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(TopUpViewModel::class.java)) {
             val database = AppDatabase.getDatabase(context)
-            val mpesaViewModel = MpesaViewModel(
-                MpesaRepository(),
-                database.walletDao()
+            val walletRepository = WalletRepository(
+                walletDao = database.walletDao(),
+                orderDao = database.orderDao(),
+                firestore = FirebaseFirestore.getInstance()
             )
             return TopUpViewModel(
-                repository = MpesaRepository(),
-                mpesaViewModel = mpesaViewModel,
-                walletDao = database.walletDao()
+                walletRepository = walletRepository,
+                mpesaRepository = MpesaRepository()
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

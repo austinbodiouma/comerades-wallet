@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -26,6 +27,8 @@ import com.example.commeradeswallet.R
 import com.example.commeradeswallet.data.model.FoodItem
 import com.example.commeradeswallet.ui.preview.PreviewWrapper
 import com.example.commeradeswallet.ui.preview.ThemePreviews
+import com.example.commeradeswallet.ui.viewmodel.AuthViewModel
+import com.example.commeradeswallet.ui.viewmodel.AuthViewModelFactory
 import com.example.commeradeswallet.ui.viewmodel.CartViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,7 +38,9 @@ fun DashboardScreen(
     onNavigateToCart: () -> Unit,
     onNavigateToWallet: () -> Unit,
     viewModel: DashboardViewModel = viewModel(factory = DashboardViewModel.Factory),
-    cartViewModel: CartViewModel = viewModel()
+    cartViewModel: CartViewModel = viewModel(),
+    onSignOut: () -> Unit,
+    authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(LocalContext.current))
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<String?>(null) }
@@ -53,6 +58,14 @@ fun DashboardScreen(
                     }
                     IconButton(onClick = onNavigateToCart) {
                         Icon(Icons.Default.ShoppingCart, contentDescription = "Cart")
+                    }
+                    IconButton(
+                        onClick = {
+                            authViewModel.signOut()
+                            onSignOut()
+                        }
+                    ) {
+                        Icon(Icons.Default.ExitToApp, contentDescription = "Sign Out")
                     }
                 }
             )
@@ -289,6 +302,8 @@ private fun DashboardScreenPreview() {
         DashboardScreen(
             onNavigateToCart = {},
             onNavigateToWallet = {},
+            cartViewModel = CartViewModel(),
+            onSignOut = {},
             viewModel = DashboardViewModel.previewViewModel()
         )
     }

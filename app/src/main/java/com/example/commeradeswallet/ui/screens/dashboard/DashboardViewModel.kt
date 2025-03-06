@@ -28,6 +28,7 @@ class DashboardViewModel(
     val error: StateFlow<String?> = _error.asStateFlow()
 
     init {
+        Log.d("DashboardViewModel", "Initializing ViewModel")
         viewModelScope.launch {
             try {
                 repository.getAllFoodItems().collect { items ->
