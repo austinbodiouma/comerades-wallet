@@ -8,39 +8,39 @@ import java.time.LocalDateTime
 object PreviewData {
     val foodItems = listOf(
         FoodItem(
-            id = 1,
+            id = "1",
             name = "Chapati",
-            price = 15,
-            category = "Main Course",
+            price = 20,
+            category = "Breakfast",
             imageUrl = "",
-            description = "Fresh homemade chapati",
+            description = "Delicious chapati",
             isQuantifiedByNumber = true
         ),
         FoodItem(
-            id = 2,
+            id = "2",
             name = "Rice",
-            price = 30,
-            category = "Main Course",
+            price = 50,
+            category = "Lunch",
             imageUrl = "",
-            description = "Steamed rice per serving",
+            description = "Steamed rice",
             isQuantifiedByNumber = false
         ),
         FoodItem(
-            id = 3,
+            id = "3",
+            name = "Beans",
+            price = 40,
+            category = "Lunch",
+            imageUrl = "",
+            description = "Cooked beans",
+            isQuantifiedByNumber = false
+        ),
+        FoodItem(
+            id = "4",
             name = "Beef Stew",
-            price = 75,
-            category = "Stew",
+            price = 120,
+            category = "Lunch",
             imageUrl = "",
-            description = "Rich beef stew per serving",
-            isQuantifiedByNumber = false
-        ),
-        FoodItem(
-            id = 4,
-            name = "Kales",
-            price = 15,
-            category = "Vegetables",
-            imageUrl = "",
-            description = "Fresh sukuma wiki per serving",
+            description = "Beef stew",
             isQuantifiedByNumber = false
         )
     )

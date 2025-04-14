@@ -16,6 +16,7 @@ import com.example.commeradeswallet.data.repository.PreviewFoodRepository
 import com.example.commeradeswallet.data.repository.RoomFoodRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 class DashboardViewModel(
     private val repository: FoodRepository
@@ -24,16 +25,31 @@ class DashboardViewModel(
     private val _foodItems = MutableStateFlow<List<FoodItem>>(emptyList())
     val foodItems: StateFlow<List<FoodItem>> = _foodItems.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing
+
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private var currentCategory: String = "All"
+    private var currentSearchQuery: String = ""
+
     init {
         Log.d("DashboardViewModel", "Initializing ViewModel")
+        loadFoodItems()
+    }
+
+    private fun loadFoodItems() {
         viewModelScope.launch {
             try {
                 repository.getAllFoodItems().collect { items ->
-                    Log.d("DashboardViewModel", "Loaded ${items.size} food items: $items")
-                    _foodItems.value = items
+                    // Process items to ensure uniqueness and filter unavailable items
+                    val uniqueItems = items
+                        .distinctBy { it.id }
+                        .filter { it.isAvailable }
+                    
+                    Log.d("DashboardViewModel", "Loaded ${items.size} food items, ${uniqueItems.size} unique available items")
+                    _foodItems.value = uniqueItems
                 }
             } catch (e: Exception) {
                 Log.e("DashboardViewModel", "Error loading food items", e)
@@ -43,29 +59,83 @@ class DashboardViewModel(
     }
 
     fun searchFoodItems(query: String) {
+        currentSearchQuery = query
         viewModelScope.launch {
-            repository.searchFoodItems(query).collect { items ->
-                _foodItems.value = items
+            try {
+                repository.searchFoodItems(query).collect { items ->
+                    // Process items to ensure uniqueness and filter unavailable items
+                    val uniqueItems = items
+                        .distinctBy { it.id }
+                        .filter { it.isAvailable }
+                    
+                    _foodItems.value = uniqueItems
+                }
+            } catch (e: Exception) {
+                Log.e("DashboardViewModel", "Error searching food items", e)
+                _error.value = e.message ?: "Error searching food items"
             }
         }
     }
 
     fun filterByCategory(category: String) {
+        currentCategory = category
         viewModelScope.launch {
-            if (category == "All") {
-                repository.getAllFoodItems().collect { items ->
-                    _foodItems.value = items
+            try {
+                if (category == "All") {
+                    repository.getAllFoodItems().collect { items ->
+                        // Process items to ensure uniqueness and filter unavailable items
+                        val uniqueItems = items
+                            .distinctBy { it.id }
+                            .filter { it.isAvailable }
+                        
+                        _foodItems.value = uniqueItems
+                    }
+                } else {
+                    repository.getFoodItemsByCategory(category).collect { items ->
+                        // Process items to ensure uniqueness and filter unavailable items
+                        val uniqueItems = items
+                            .distinctBy { it.id }
+                            .filter { it.isAvailable }
+                        
+                        _foodItems.value = uniqueItems
+                    }
                 }
-            } else {
-                repository.getFoodItemsByCategory(category).collect { items ->
-                    _foodItems.value = items
-                }
+            } catch (e: Exception) {
+                Log.e("DashboardViewModel", "Error filtering by category", e)
+                _error.value = e.message ?: "Error filtering by category"
             }
         }
     }
 
     fun updateQuantity(foodItem: FoodItem, quantity: Int) {
         // Implement order logic here
+    }
+
+    fun refreshFoodItems() {
+        viewModelScope.launch {
+            try {
+                _isRefreshing.value = true
+                Log.d("DashboardViewModel", "Manual refresh triggered")
+                
+                // Refresh data from server
+                repository.refreshFoodItems()
+                
+                // Wait a moment for DB to update
+                delay(300)
+                
+                // Re-apply current filters after refresh
+                if (currentSearchQuery.isNotEmpty()) {
+                    searchFoodItems(currentSearchQuery)
+                } else {
+                    filterByCategory(currentCategory)
+                }
+            } catch (e: Exception) {
+                Log.e("DashboardViewModel", "Error refreshing food items", e)
+                _error.value = "Failed to refresh: ${e.message}"
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
     }
 
     companion object {

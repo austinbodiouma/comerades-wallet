@@ -7,6 +7,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,18 +40,27 @@ fun RegisterScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var studentId by remember { mutableStateOf("") }
+    var phoneNumber by remember { mutableStateOf("") }
     var nameError by remember { mutableStateOf<String?>(null) }
     var emailError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
     var confirmPasswordError by remember { mutableStateOf<String?>(null) }
+    var studentIdError by remember { mutableStateOf<String?>(null) }
+    var phoneNumberError by remember { mutableStateOf<String?>(null) }
 
-    val state by viewModel.state.collectAsState()
+    val authState by viewModel.authState.collectAsState()
 
-    LaunchedEffect(state.isSignInSuccessful) {
-        Log.d("RegisterScreen", "Sign in state changed: ${state.isSignInSuccessful}")
-        if (state.isSignInSuccessful) {
-            Log.d("RegisterScreen", "Navigation should happen now")
-            onNavigateToHome()
+    LaunchedEffect(authState) {
+        when (authState) {
+            is AuthViewModel.AuthState.Authenticated -> {
+                Log.d("RegisterScreen", "Authentication successful, navigating to home")
+                onNavigateToHome()
+            }
+            is AuthViewModel.AuthState.Error -> {
+                Log.e("RegisterScreen", "Authentication error: ${(authState as AuthViewModel.AuthState.Error).message}")
+            }
+            else -> {}
         }
     }
 
@@ -73,6 +84,16 @@ fun RegisterScreen(
         
         if (password != confirmPassword) {
             confirmPasswordError = "Passwords do not match"
+            isValid = false
+        }
+        
+        if (studentId.isBlank()) {
+            studentIdError = "Student ID is required"
+            isValid = false
+        }
+        
+        if (phoneNumber.isBlank()) {
+            phoneNumberError = "Phone number is required"
             isValid = false
         }
         
@@ -104,8 +125,13 @@ fun RegisterScreen(
 
         OutlinedTextField(
             value = name,
-            onValueChange = { name = it },
+            onValueChange = { 
+                name = it
+                nameError = null
+            },
             label = { Text("Full Name") },
+            isError = nameError != null,
+            supportingText = nameError?.let { { Text(it) } },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
@@ -124,9 +150,66 @@ fun RegisterScreen(
         )
 
         OutlinedTextField(
+            value = studentId,
+            onValueChange = { 
+                studentId = it
+                studentIdError = null
+            },
+            label = { Text("Student ID") },
+            isError = studentIdError != null,
+            supportingText = studentIdError?.let { { Text(it) } },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            ),
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Home,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        )
+
+        OutlinedTextField(
+            value = phoneNumber,
+            onValueChange = { 
+                phoneNumber = it
+                phoneNumberError = null
+            },
+            label = { Text("Phone Number") },
+            isError = phoneNumberError != null,
+            supportingText = phoneNumberError?.let { { Text(it) } },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            ),
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Phone,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        )
+
+        OutlinedTextField(
             value = email,
-            onValueChange = { email = it },
+            onValueChange = { 
+                email = it
+                emailError = null
+            },
             label = { Text("Email") },
+            isError = emailError != null,
+            supportingText = emailError?.let { { Text(it) } },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
@@ -146,8 +229,13 @@ fun RegisterScreen(
 
         OutlinedTextField(
             value = password,
-            onValueChange = { password = it },
+            onValueChange = { 
+                password = it
+                passwordError = null
+            },
             label = { Text("Password") },
+            isError = passwordError != null,
+            supportingText = passwordError?.let { { Text(it) } },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier
                 .fillMaxWidth()
@@ -168,8 +256,13 @@ fun RegisterScreen(
 
         OutlinedTextField(
             value = confirmPassword,
-            onValueChange = { confirmPassword = it },
+            onValueChange = { 
+                confirmPassword = it
+                confirmPasswordError = null
+            },
             label = { Text("Confirm Password") },
+            isError = confirmPasswordError != null,
+            supportingText = confirmPasswordError?.let { { Text(it) } },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier
                 .fillMaxWidth()
@@ -192,7 +285,7 @@ fun RegisterScreen(
             onClick = {
                 if (validateInput()) {
                     Log.d("RegisterScreen", "Attempting to register user: $email")
-                    viewModel.register(name, email, password)
+                    viewModel.signUp(email, password, name, studentId, phoneNumber)
                 }
             },
             modifier = Modifier
@@ -201,7 +294,7 @@ fun RegisterScreen(
                 .height(50.dp),
             shape = RoundedCornerShape(12.dp)
         ) {
-            if (state.isLoading) {
+            if (authState is AuthViewModel.AuthState.Loading) {
                 CircularProgressIndicator(
                     color = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(24.dp)
@@ -212,13 +305,14 @@ fun RegisterScreen(
         }
 
         // Show error dialog if needed
-        if (state.signInError != null) {
+        if (authState is AuthViewModel.AuthState.Error) {
+            val errorMessage = (authState as AuthViewModel.AuthState.Error).message
             AlertDialog(
-                onDismissRequest = { viewModel.resetState() },
+                onDismissRequest = { /* Dismiss the dialog */ },
                 title = { Text("Error") },
-                text = { Text(state.signInError!!) },
+                text = { Text(errorMessage) },
                 confirmButton = {
-                    TextButton(onClick = { viewModel.resetState() }) {
+                    TextButton(onClick = { /* Dismiss the dialog */ }) {
                         Text("OK")
                     }
                 }

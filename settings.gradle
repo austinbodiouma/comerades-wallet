@@ -13,5 +13,8 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Commerades wallet"
-include ':app' 
+rootProject.name = "Comerades Wallet"
+include ':app'
+include ':cashier'
+include ':chef'
+

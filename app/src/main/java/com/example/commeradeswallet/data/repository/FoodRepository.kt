@@ -44,27 +44,42 @@ class RoomFoodRepository(
 
     override suspend fun refreshFoodItems() {
         try {
-            val foodItems = firestore.collection("food_items")
+            Log.d("FoodRepository", "Refreshing food items from Firestore")
+            
+            // Fetch all items from Firestore
+            val snapshot = firestore.collection("food_items")
                 .get()
                 .await()
-                .documents
-                .mapNotNull { doc ->
-                    try {
-                        val item = doc.toObject(FoodItem::class.java)
-                        item?.copy(id = doc.id.toIntOrNull() ?: 0)
-                    } catch (e: Exception) {
-                        Log.e("FoodRepository", "Error parsing food item", e)
-                        null
-                    }
-                }
             
+            val foodItems = snapshot.documents.mapNotNull { doc ->
+                try {
+                    FoodItem(
+                        id = doc.id, // Use Firestore document ID directly
+                        name = doc.getString("name") ?: return@mapNotNull null,
+                        price = doc.getLong("price")?.toInt() ?: return@mapNotNull null,
+                        category = doc.getString("category") ?: return@mapNotNull null,
+                        imageUrl = doc.getString("imageUrl") ?: "",
+                        description = doc.getString("description") ?: "",
+                        isQuantifiedByNumber = doc.getBoolean("isQuantifiedByNumber") ?: false,
+                        isAvailable = doc.getBoolean("isAvailable") ?: true,
+                        lastUpdated = doc.getLong("lastUpdated") ?: System.currentTimeMillis()
+                    )
+                } catch (e: Exception) {
+                    Log.e("FoodRepository", "Error parsing food item ${doc.id}: ${e.message}", e)
+                    null
+                }
+            }
+
             if (foodItems.isNotEmpty()) {
-                foodDao.insertAll(foodItems)
+                // Replace all items in a single transaction
+                foodDao.replaceAllItems(foodItems)
                 Log.d("FoodRepository", "Successfully refreshed ${foodItems.size} food items")
+            } else {
+                Log.w("FoodRepository", "No valid food items found in Firestore")
             }
         } catch (e: Exception) {
-            Log.e("FoodRepository", "Error refreshing food items", e)
-            // If Firestore fetch fails, we'll still have the local cache available
+            Log.e("FoodRepository", "Error refreshing food items: ${e.message}", e)
+            throw e // Propagate the error to handle it in the ViewModel
         }
     }
 }

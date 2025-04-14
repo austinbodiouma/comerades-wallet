@@ -13,30 +13,41 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDateTime
 import java.time.ZoneId
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentSnapshot
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.callbackFlow
 
 class WalletRepository(
-    private val walletDao: WalletDao,
-    private val orderDao: OrderDao,
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
+    private val walletDao: WalletDao? = null,
+    private val orderDao: OrderDao? = null
 ) {
-    fun getWalletBalance(userId: String): Flow<Double> = 
-        walletDao.getTransactions(userId)
-            .map { transactions -> 
-                transactions.sumOf { 
-                    if (it.type == TransactionType.DEPOSIT) it.amount else -it.amount 
+    private val walletsCollection = firestore.collection("wallets")
+
+    fun getWalletBalance(userId: String): Flow<Double> = callbackFlow {
+        val listener = walletsCollection.document(userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
                 }
+                
+                val balance = snapshot?.getDouble("balance") ?: 0.0
+                trySend(balance)
             }
-            .catch { e ->
-                Log.e("WalletRepository", "Error getting wallet balance", e)
-                emit(0.0)
-            }
+            
+        awaitClose { listener.remove() }
+    }
 
     fun getTransactions(userId: String): Flow<List<WalletTransaction>> =
-        walletDao.getTransactions(userId)
-            .catch { e ->
+        walletDao?.getTransactions(userId)
+            ?.catch { e ->
                 Log.e("WalletRepository", "Error getting transactions", e)
                 emit(emptyList())
             }
+            ?: callbackFlow { close(IllegalStateException("WalletDao is null")) }
 
     suspend fun processTransaction(
         userId: String,
@@ -58,7 +69,7 @@ class WalletRepository(
                 timestamp = LocalDateTime.now(),
                 reference = reference
             )
-            walletDao.insertTransaction(transaction)
+            walletDao?.insertTransaction(transaction)
             
             Result.success(Unit)
         } else {
@@ -140,17 +151,47 @@ class WalletRepository(
                     }
                 }
 
-            walletDao.insertTransactions(transactions)
+            walletDao?.insertTransactions(transactions)
         } catch (e: Exception) {
             Log.e("WalletRepository", "Error syncing with Firestore", e)
         }
     }
     
     suspend fun getTransactionByReference(reference: String, userId: String): WalletTransaction? {
-        return walletDao.getTransactionByReference(reference)
+        return walletDao?.getTransactionByReference(reference)
     }
     
     suspend fun updateTransactionStatus(reference: String, status: String) {
-        walletDao.updateTransactionStatus(reference, status)
+        walletDao?.updateTransactionStatus(reference, status)
+    }
+
+    suspend fun updateBalance(update: (Double) -> Double) {
+        val userId = auth.currentUser?.uid ?: throw IllegalStateException("User not logged in")
+        val docRef = walletsCollection.document(userId)
+        
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(docRef)
+            val currentBalance = snapshot.getDouble("balance") ?: 0.0
+            val newBalance = update(currentBalance)
+            
+            transaction.set(docRef, mapOf(
+                "balance" to newBalance,
+                "updatedAt" to com.google.firebase.Timestamp.now()
+            ), com.google.firebase.firestore.SetOptions.merge())
+        }.await()
+    }
+
+    suspend fun createWalletIfNotExists() {
+        val userId = auth.currentUser?.uid ?: throw IllegalStateException("User not logged in")
+        val docRef = walletsCollection.document(userId)
+        
+        val snapshot = docRef.get().await()
+        if (!snapshot.exists()) {
+            docRef.set(mapOf(
+                "balance" to 0.0,
+                "createdAt" to com.google.firebase.Timestamp.now(),
+                "updatedAt" to com.google.firebase.Timestamp.now()
+            )).await()
+        }
     }
 } 

@@ -11,8 +11,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url = uri("https://jitpack.io") }
     }
 }
 
 rootProject.name = "Commerades wallet"
 include(":app")
+include(":chef")
+include(":cashier")

@@ -223,35 +223,35 @@ private fun QuantityControls(
 
 @ThemePreviews
 @Composable
-private fun OrderSummaryScreenPreview() {
-    PreviewWrapper {
-        val previewCartViewModel = CartViewModel().apply {
-            updateQuantity(
-                FoodItem(
-                    id = 1,
-                    name = "Chapati",
-                    price = 15,
-                    category = "Main Course",
-                    imageUrl = "",
-                    description = "Fresh homemade chapati",
-                    isQuantifiedByNumber = true
-                ),
-                2
-            )
-            updateQuantity(
-                FoodItem(
-                    id = 2,
-                    name = "Beef Stew",
-                    price = 75,
-                    category = "Stew",
-                    imageUrl = "",
-                    description = "Rich beef stew",
-                    isQuantifiedByNumber = false
-                ),
-                1
-            )
-        }
+fun OrderSummaryScreenPreview() {
+    val previewCartViewModel = CartViewModel().apply {
+        updateQuantity(
+            FoodItem(
+                id = "1",
+                name = "Chapati",
+                price = 20,
+                category = "Breakfast",
+                imageUrl = "",
+                description = "Fresh chapati",
+                isQuantifiedByNumber = true
+            ),
+            2
+        )
+        updateQuantity(
+            FoodItem(
+                id = "2",
+                name = "Rice",
+                price = 50,
+                category = "Lunch",
+                imageUrl = "",
+                description = "Steamed rice",
+                isQuantifiedByNumber = false
+            ),
+            1
+        )
+    }
 
+    PreviewWrapper {
         OrderSummaryScreen(
             onNavigateBack = {},
             onCheckout = {},

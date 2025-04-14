@@ -5,7 +5,8 @@ buildscript {
     }
     
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.2.2'  // Use 8.2.2 instead of 8.6.0 as it's more stable
+        classpath 'com.android.tools.build:gradle:8.6.0'  // Upgraded to 8.6.0 for improvements
+
         classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0'  // Kotlin Plugin
         classpath 'com.google.gms:google-services:4.4.0'  // Google Services plugin
     }
@@ -13,4 +14,4 @@ buildscript {
 
 plugins {
     id 'com.google.devtools.ksp' version '1.9.0-1.0.13' apply false
-} 
+}

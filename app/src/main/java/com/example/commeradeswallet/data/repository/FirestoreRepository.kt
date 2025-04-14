@@ -3,14 +3,12 @@ package com.example.commeradeswallet.data.repository
 import android.util.Log
 import com.example.commeradeswallet.data.model.*
 import com.google.firebase.Timestamp
-import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.QuerySnapshot
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDateTime
 import java.time.ZoneId
-import com.google.firebase.firestore.SetOptions
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class FirestoreRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
@@ -34,10 +32,6 @@ class FirestoreRepository(
             "createdAt" to Timestamp.now()
         )
         userDoc.set(userData).await()
-        
-        // Create wallet for new user
-        createWallet(userDoc.id)
-        
         Result.success(userDoc.id)
     } catch (e: Exception) {
         Log.e("FirestoreRepository", "Error creating user", e)
@@ -64,80 +58,21 @@ class FirestoreRepository(
         Result.failure(e)
     }
 
-    // Wallet Operations
-    private suspend fun createWallet(userId: String) = try {
-        val walletData = hashMapOf(
-            "userId" to userId,
-            "balance" to 0.0,
-            "createdAt" to Timestamp.now(),
-            "updatedAt" to Timestamp.now()
-        )
-        walletsCollection.document(userId).set(walletData).await()
-    } catch (e: Exception) {
-        Log.e("FirestoreRepository", "Error creating wallet", e)
-        throw e
-    }
-
-    suspend fun getWallet(userId: String): Result<Double> = try {
-        val doc = walletsCollection.document(userId).get().await()
-        if (doc.exists()) {
-            Result.success(doc.getDouble("balance") ?: 0.0)
-        } else {
-            Result.failure(Exception("Wallet not found"))
-        }
-    } catch (e: Exception) {
-        Log.e("FirestoreRepository", "Error getting wallet", e)
-        Result.failure(e)
-    }
-
-    // Transaction Operations
-    suspend fun addTransaction(transaction: WalletTransaction): Result<String> = try {
-        val transactionDoc = transactionsCollection.document()
-        val transactionData = hashMapOf(
-            "userId" to transaction.userId,
-            "amount" to transaction.amount,
-            "type" to transaction.type.name,
-            "description" to transaction.description,
-            "timestamp" to Timestamp.now(),
-            "reference" to transaction.reference,
-            "status" to "COMPLETED"
-        )
-        transactionDoc.set(transactionData).await()
-        
-        // Update wallet balance
-        firestore.runTransaction { tx ->
-            val walletRef = walletsCollection.document(transaction.userId)
-            val wallet = tx.get(walletRef)
-            val currentBalance = wallet.getDouble("balance") ?: 0.0
-            val newBalance = when (transaction.type) {
-                TransactionType.DEPOSIT -> currentBalance + transaction.amount
-                TransactionType.WITHDRAWAL -> currentBalance - transaction.amount
-            }
-            tx.update(walletRef, "balance", newBalance)
-        }.await()
-        
-        Result.success(transactionDoc.id)
-    } catch (e: Exception) {
-        Log.e("FirestoreRepository", "Error adding transaction", e)
-        Result.failure(e)
-    }
-
     // Food Items Operations
-    suspend fun addFoodItem(foodItem: FoodItem): Result<String> = try {
-        val foodDoc = foodItemsCollection.document()
-        val foodData = hashMapOf(
-            "name" to foodItem.name,
-            "price" to foodItem.price,
-            "category" to foodItem.category,
-            "imageUrl" to foodItem.imageUrl,
-            "description" to foodItem.description,
-            "isQuantifiedByNumber" to foodItem.isQuantifiedByNumber
-        )
-        foodDoc.set(foodData).await()
-        Result.success(foodDoc.id)
-    } catch (e: Exception) {
-        Log.e("FirestoreRepository", "Error adding food item", e)
-        Result.failure(e)
+    suspend fun addFoodItem(item: FoodItem): Result<String> {
+        return try {
+            val documentRef = if (item.id.isNotEmpty()) {
+                foodItemsCollection.document(item.id)
+            } else {
+                foodItemsCollection.document()
+            }
+            
+            documentRef.set(item).await()
+            Result.success(documentRef.id)
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error adding food item", e)
+            Result.failure(e)
+        }
     }
 
     suspend fun getAllFoodItems(): Result<List<FoodItem>> = try {
@@ -145,7 +80,7 @@ class FirestoreRepository(
         val foodItems = snapshot.documents.mapNotNull { doc ->
             try {
                 FoodItem(
-                    id = doc.id.toIntOrNull() ?: 0,
+                    id = doc.id,
                     name = doc.getString("name") ?: return@mapNotNull null,
                     price = doc.getLong("price")?.toInt() ?: return@mapNotNull null,
                     category = doc.getString("category") ?: return@mapNotNull null,
@@ -165,43 +100,17 @@ class FirestoreRepository(
     }
 
     // Order Operations
-    suspend fun createOrder(order: Order): Result<String> = try {
-        val orderDoc = ordersCollection.document()
-        val orderData = hashMapOf(
-            "userId" to order.userId,
-            "items" to order.items.map { item ->
-                hashMapOf(
-                    "foodItemId" to item.foodItem.id,
-                    "quantity" to item.quantity
-                )
-            },
-            "totalAmount" to order.totalAmount,
-            "status" to order.status.name,
-            "timestamp" to Timestamp.now()
-        )
-        orderDoc.set(orderData).await()
-        Result.success(orderDoc.id)
-    } catch (e: Exception) {
-        Log.e("FirestoreRepository", "Error creating order", e)
-        Result.failure(e)
-    }
-
-    suspend fun getOrdersByUser(userId: String): Result<List<Order>> = try {
-        val snapshot = ordersCollection
-            .whereEqualTo("userId", userId)
-            .orderBy("timestamp")
-            .get()
-            .await()
-            
+    suspend fun getOrders(): Result<List<Order>> = try {
+        val snapshot = ordersCollection.get().await()
         val orders = snapshot.documents.mapNotNull { doc ->
             try {
                 Order(
-                    id = doc.id.toLongOrNull() ?: return@mapNotNull null,
+                    id = doc.id,
                     userId = doc.getString("userId") ?: return@mapNotNull null,
-                    items = (doc.get("items") as? List<Map<String, Any>>)?.map { item ->
+                    items = (doc.get("items") as? List<Map<String, Any>>)?.mapNotNull { item ->
                         CartItem(
                             foodItem = FoodItem(
-                                id = (item["foodItemId"] as? Long)?.toInt() ?: return@mapNotNull null,
+                                id = (item["foodItemId"] as? String) ?: return@mapNotNull null,
                                 name = "", // These will need to be populated from the food items collection
                                 price = 0,
                                 category = "",
@@ -211,7 +120,7 @@ class FirestoreRepository(
                             quantity = (item["quantity"] as? Long)?.toInt() ?: return@mapNotNull null
                         )
                     } ?: return@mapNotNull null,
-                    totalAmount = doc.getDouble("totalAmount") ?: return@mapNotNull null,
+                    totalAmount = (doc.get("totalAmount") as? Number)?.toDouble() ?: return@mapNotNull null,
                     status = OrderStatus.valueOf(doc.getString("status") ?: return@mapNotNull null)
                 )
             } catch (e: Exception) {
@@ -225,13 +134,143 @@ class FirestoreRepository(
         Result.failure(e)
     }
 
-    suspend fun updateOrderStatus(orderId: String, status: OrderStatus): Result<Unit> = try {
-        ordersCollection.document(orderId)
-            .update("status", status.name)
+    suspend fun updateFoodItem(item: FoodItem): Result<String> {
+        return try {
+            foodItemsCollection.document(item.id).set(item).await()
+            Result.success(item.id)
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error updating food item", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun addTransaction(transaction: WalletTransaction): Result<String> = try {
+        val transactionDoc = transactionsCollection.document()
+        val transactionData: MutableMap<String, Any> = mutableMapOf(
+            "userId" to transaction.userId,
+            "amount" to transaction.amount,
+            "type" to transaction.type.name,
+            "description" to transaction.description,
+            "timestamp" to Timestamp.now(),
+            "reference" to (transaction.reference ?: ""),
+            "status" to "COMPLETED" as String
+        )
+        transactionDoc.set(transactionData).await()
+        
+        Result.success(transactionDoc.id)
+    } catch (e: Exception) {
+        Log.e("FirestoreRepository", "Error adding transaction", e)
+        Result.failure(e)
+    }
+
+    suspend fun processPayment(order: Order): Result<Unit> = try {
+        // Implementation for processing payment
+        // This is a placeholder for the actual payment processing logic
+        Log.d("FirestoreRepository", "Processing payment for order: ${order.id}")
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Log.e("FirestoreRepository", "Error processing payment", e)
+        Result.failure(e)
+    }
+
+    suspend fun updateOrder(order: Order): Result<Unit> = try {
+        val orderRef = ordersCollection.document(order.id)
+        val orderData: MutableMap<String, Any> = mutableMapOf(
+            "status" to order.status.name,
+            "timestamp" to Timestamp.now()
+        )
+        orderRef.update(orderData).await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Log.e("FirestoreRepository", "Error updating order", e)
+        Result.failure(e)
+    }
+
+    suspend fun updateStockQuantity(itemId: Int, quantity: Int, timestamp: Long): Result<Unit> = try {
+        val updateData = hashMapOf(
+            "quantity" to quantity,
+            "lastUpdated" to timestamp
+        )
+        firestore.collection("stock_items")
+            .document(itemId.toString())
+            .update(updateData as Map<String, Any>)
             .await()
         Result.success(Unit)
     } catch (e: Exception) {
-        Log.e("FirestoreRepository", "Error updating order status", e)
+        Log.e("FirestoreRepository", "Error updating stock quantity", e)
         Result.failure(e)
     }
-} 
+
+    suspend fun getAllTransactions(): Result<List<WalletTransaction>> = try {
+        val snapshot = transactionsCollection.get().await()
+        val transactions = snapshot.documents.mapNotNull { doc ->
+            try {
+                WalletTransaction(
+                    id = doc.id.hashCode().toLong(),
+                    userId = doc.getString("userId") ?: return@mapNotNull null,
+                    amount = (doc.get("amount") as? Number)?.toDouble() ?: return@mapNotNull null,
+                    type = TransactionType.valueOf(doc.getString("type") ?: return@mapNotNull null),
+                    description = doc.getString("description") ?: "",
+                    timestamp = (doc.get("timestamp") as? Timestamp)?.toDate()?.toInstant()
+                        ?.atZone(ZoneId.systemDefault())
+                        ?.toLocalDateTime() ?: LocalDateTime.now(),
+                    reference = doc.getString("reference")
+                )
+            } catch (e: Exception) {
+                Log.e("FirestoreRepository", "Error parsing transaction", e)
+                null
+            }
+        }
+        Result.success(transactions)
+    } catch (e: Exception) {
+        Log.e("FirestoreRepository", "Error getting transactions", e)
+        Result.failure(e)
+    }
+
+    suspend fun getAllStockItems(): Result<List<StockItem>> = try {
+        val snapshot = firestore.collection("stock_items")
+            .orderBy("name")
+            .get()
+            .await()
+        val items = snapshot.documents.mapNotNull { doc ->
+            try {
+                StockItem(
+                    id = doc.id.toIntOrNull() ?: return@mapNotNull null,
+                    name = doc.getString("name") ?: return@mapNotNull null,
+                    quantity = (doc.get("quantity") as? Number)?.toInt() ?: return@mapNotNull null,
+                    unit = doc.getString("unit") ?: return@mapNotNull null,
+                    minimumQuantity = (doc.get("minimumQuantity") as? Number)?.toInt() ?: 0,
+                    category = doc.getString("category") ?: return@mapNotNull null,
+                    lastUpdated = (doc.get("lastUpdated") as? Number)?.toLong() ?: System.currentTimeMillis()
+                )
+            } catch (e: Exception) {
+                Log.e("FirestoreRepository", "Error parsing stock item", e)
+                null
+            }
+        }
+        Result.success(items)
+    } catch (e: Exception) {
+        Log.e("FirestoreRepository", "Error getting stock items", e)
+        Result.failure(e)
+    }
+
+    suspend fun getOrderByCode(orderCode: String): Result<Order?> = withContext(Dispatchers.IO) {
+        try {
+            val snapshot = ordersCollection
+                .whereEqualTo("orderCode", orderCode)
+                .get()
+                .await()
+
+            if (snapshot.isEmpty) {
+                return@withContext Result.success(null)
+            }
+
+            val document = snapshot.documents.first()
+            val order = document.toObject(Order::class.java)?.copy(id = document.id)
+            Result.success(order)
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error getting order by code", e)
+            Result.failure(e)
+        }
+    }
+}

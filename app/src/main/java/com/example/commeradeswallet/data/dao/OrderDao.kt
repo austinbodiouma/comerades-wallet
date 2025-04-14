@@ -16,11 +16,20 @@ interface OrderDao {
     suspend fun getOrderByCode(orderCode: String): Order?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrder(order: Order): Long
+    suspend fun insertOrder(order: Order)
 
     @Update
     suspend fun updateOrder(order: Order)
 
     @Delete
     suspend fun deleteOrder(order: Order)
+
+    @Query("SELECT * FROM orders WHERE id = :orderId")
+    suspend fun getOrderById(orderId: String): Order?
+
+    @Query("SELECT * FROM orders WHERE status = :status ORDER BY timestamp DESC")
+    fun getOrdersByStatus(status: String): Flow<List<Order>>
+
+    @Query("DELETE FROM orders")
+    suspend fun deleteAllOrders()
 } 

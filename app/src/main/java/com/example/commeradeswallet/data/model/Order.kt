@@ -9,8 +9,8 @@ import java.time.LocalDateTime
 @Entity(tableName = "orders")
 @TypeConverters(Converters::class)
 data class Order(
-    @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
+    @PrimaryKey
+    val id: String,
     val userId: String,
     val orderCode: String? = null,
     val items: List<CartItem>,

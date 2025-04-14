@@ -30,8 +30,13 @@ import com.example.commeradeswallet.ui.preview.ThemePreviews
 import com.example.commeradeswallet.ui.viewmodel.AuthViewModel
 import com.example.commeradeswallet.ui.viewmodel.AuthViewModelFactory
 import com.example.commeradeswallet.ui.viewmodel.CartViewModel
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 
-@OptIn(ExperimentalMaterial3Api::class)
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun DashboardScreen(
     modifier: Modifier = Modifier,
@@ -43,16 +48,38 @@ fun DashboardScreen(
     authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(LocalContext.current))
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf<String?>(null) }
+    var selectedCategory by remember { mutableStateOf<String?>("All") }
     
     val foodItems by viewModel.foodItems.collectAsState()
-    val categories = listOf("All", "Main Course", "Vegetables", "Stew")
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val error by viewModel.error.collectAsState()
+    
+    // Define categories based on available items to avoid empty categories
+    val availableCategories = remember(foodItems) {
+        foodItems.map { it.category }.distinct().sorted()
+    }
+    val categories = remember(availableCategories) {
+        listOf("All") + availableCategories
+    }
+    
+    // Pull to refresh state
+    val pullRefreshState = rememberPullRefreshState(isRefreshing, { viewModel.refreshFoodItems() })
+
+    // Show error message if any
+    LaunchedEffect(error) {
+        error?.let {
+            // You can show a snackbar or toast here
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Food Menu", fontWeight = FontWeight.Bold) },
                 actions = {
+                    IconButton(onClick = { viewModel.refreshFoodItems() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
                     IconButton(onClick = onNavigateToWallet) {
                         Icon(Icons.Default.MailOutline, contentDescription = "Wallet")
                     }
@@ -71,90 +98,151 @@ fun DashboardScreen(
             )
         }
     ) { padding ->
-        Column(
-            modifier = modifier
+        Box(
+            modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .pullRefresh(pullRefreshState)
         ) {
-            // Search Bar
-            SearchBar(
-                query = searchQuery,
-                onQueryChange = { 
-                    searchQuery = it
-                    viewModel.searchFoodItems(it)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                placeholder = { Text("Search food items...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                trailingIcon = if (searchQuery.isNotEmpty()) {
-                    {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear")
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+            ) {
+                // Search Bar
+                SearchBar(
+                    query = searchQuery,
+                    onQueryChange = { 
+                        searchQuery = it
+                        viewModel.searchFoodItems(it)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    placeholder = { Text("Search food items...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    trailingIcon = if (searchQuery.isNotEmpty()) {
+                        {
+                            IconButton(onClick = { 
+                                searchQuery = ""
+                                viewModel.filterByCategory(selectedCategory ?: "All")
+                            }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Clear")
+                            }
+                        }
+                    } else null,
+                    active = false,
+                    onSearch = {},
+                    onActiveChange = {}
+                ) {}
+
+                // Categories
+                ScrollableTabRow(
+                    selectedTabIndex = categories.indexOf(selectedCategory ?: "All"),
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    edgePadding = 16.dp,
+                    divider = {},
+                    indicator = {},
+                    containerColor = Color.Transparent
+                ) {
+                    categories.forEach { category ->
+                        Tab(
+                            selected = category == selectedCategory,
+                            onClick = { 
+                                selectedCategory = category
+                                viewModel.filterByCategory(category)
+                            },
+                            modifier = Modifier.padding(end = 8.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = if (category == selectedCategory) 
+                                    MaterialTheme.colorScheme.primaryContainer 
+                                else 
+                                    MaterialTheme.colorScheme.surface,
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                tonalElevation = 2.dp
+                            ) {
+                                Text(
+                                    text = category,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    color = if (category == selectedCategory)
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    else
+                                        MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                         }
                     }
-                } else null,
-                active = false,
-                onSearch = {},
-                onActiveChange = {}
-            ) {}
+                }
 
-            // Categories
-            ScrollableTabRow(
-                selectedTabIndex = categories.indexOf(selectedCategory ?: "All"),
-                modifier = Modifier.padding(vertical = 8.dp),
-                edgePadding = 16.dp,
-                divider = {},
-                indicator = {},
-                containerColor = Color.Transparent
-            ) {
-                categories.forEach { category ->
-                    Tab(
-                        selected = category == selectedCategory,
-                        onClick = { 
-                            selectedCategory = category
-                            viewModel.filterByCategory(category)
-                        },
-                        modifier = Modifier.padding(end = 8.dp)
+                // Food Items or Empty State
+                if (foodItems.isEmpty()) {
+                    // Display empty state
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = if (category == selectedCategory) 
-                                MaterialTheme.colorScheme.primaryContainer 
-                            else 
-                                MaterialTheme.colorScheme.surface,
-                            modifier = Modifier.padding(vertical = 8.dp),
-                            tonalElevation = 2.dp
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
                         ) {
+                            Icon(
+                                Icons.Default.Menu,
+                                contentDescription = "No food available",
+                                modifier = Modifier.size(80.dp),
+                                tint = MaterialTheme.colorScheme.secondary
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = category,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                color = if (category == selectedCategory)
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                else
-                                    MaterialTheme.colorScheme.onSurface
+                                text = "No food items available",
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Please check back later or try refreshing",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Button(
+                                onClick = { viewModel.refreshFoodItems() }
+                            ) {
+                                Icon(
+                                    Icons.Default.Refresh,
+                                    contentDescription = "Refresh",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Refresh")
+                            }
+                        }
+                    }
+                } else {
+                    // Food Items Grid
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        contentPadding = PaddingValues(16.dp),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(foodItems) { foodItem ->
+                            FoodItemCard(
+                                foodItem = foodItem,
+                                cartViewModel = cartViewModel
                             )
                         }
                     }
                 }
             }
-
-            // Food Items Grid
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(16.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(foodItems) { foodItem ->
-                    FoodItemCard(
-                        foodItem = foodItem,
-                        cartViewModel = cartViewModel
-                    )
-                }
-            }
+            
+            // Pull to refresh indicator
+            PullRefreshIndicator(
+                refreshing = isRefreshing,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
         }
     }
 }
@@ -165,7 +253,12 @@ private fun FoodItemCard(
     foodItem: FoodItem,
     cartViewModel: CartViewModel
 ) {
-    var quantity by remember { mutableStateOf(0) }
+    // Get the cart items from the CartViewModel
+    val cartItems by cartViewModel.cartItems.collectAsState()
+    
+    // Find the quantity of this food item in the cart
+    val existingCartItem = cartItems.find { it.foodItem.id == foodItem.id }
+    val quantity = existingCartItem?.quantity ?: 0
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -230,8 +323,7 @@ private fun FoodItemCard(
                         IconButton(
                             onClick = { 
                                 if (quantity > 0) {
-                                    quantity--
-                                    cartViewModel.updateQuantity(foodItem, quantity)
+                                    cartViewModel.updateQuantity(foodItem, quantity - 1)
                                 }
                             },
                             modifier = Modifier
@@ -261,8 +353,7 @@ private fun FoodItemCard(
 
                         IconButton(
                             onClick = { 
-                                quantity++
-                                cartViewModel.updateQuantity(foodItem, quantity)
+                                cartViewModel.updateQuantity(foodItem, quantity + 1)
                             },
                             modifier = Modifier
                                 .size(32.dp)

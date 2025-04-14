@@ -1,6 +1,7 @@
 package com.example.commeradeswallet
 
 import android.app.Application
+import android.os.Build
 import android.util.Log
 import com.example.commeradeswallet.data.AppDatabase
 import com.example.commeradeswallet.data.FirestoreInitializer
@@ -9,6 +10,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.messaging.FirebaseMessaging
+import com.google.firebase.messaging.ktx.messaging
+import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -38,16 +41,11 @@ class CommeradesWalletApp : Application() {
                 .build()
             db.firestoreSettings = settings
             
+            // Initialize Firestore data
+            firestoreInitializer = FirestoreInitializer(this)
+            
             // Initialize FCM
-            FirebaseMessaging.getInstance().token
-                .addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        val token = task.result
-                        Log.d("CommeradesWalletApp", "FCM Token: $token")
-                    } else {
-                        Log.e("CommeradesWalletApp", "Failed to get FCM token", task.exception)
-                    }
-                }
+            initializeFirebaseMessaging()
 
             // Initialize Auth
             FirebaseAuth.getInstance().addAuthStateListener { auth ->
@@ -55,10 +53,6 @@ class CommeradesWalletApp : Application() {
                     Log.d("CommeradesWalletApp", "User signed in: ${user.uid}")
                 } ?: Log.d("CommeradesWalletApp", "User signed out")
             }
-
-            // Initialize Firestore data
-            firestoreInitializer = FirestoreInitializer(this)
-            initializeFirestoreData()
 
             Log.d("CommeradesWalletApp", "Firebase services initialized successfully")
         } catch (e: Exception) {
@@ -69,13 +63,40 @@ class CommeradesWalletApp : Application() {
     private fun initializeFirestoreData() {
         firestoreInitializer.initializeData()
         
-        // Optionally create test data (comment out in production)
-        CoroutineScope(Dispatchers.IO).launch {
-            firestoreInitializer.createTestData(
-                email = "test@example.com",
-                name = "Test User"
-            )
+        // Create test data if running on Android O or higher
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            CoroutineScope(Dispatchers.IO).launch {
+                firestoreInitializer.createTestData(
+                    email = "test@example.com",
+                    name = "Test User"
+                )
+            }
         }
+    }
+
+    private fun initializeFirebaseMessaging() {
+        Firebase.messaging.token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                Log.w("CommeradesWalletApp", "Fetching FCM registration token failed", task.exception)
+                return@addOnCompleteListener
+            }
+
+            // Get new FCM registration token
+            val token = task.result
+            Log.d("CommeradesWalletApp", "FCM Token: $token")
+            // Initialize Firestore data after Firebase is ready
+            initializeFirestoreData()
+        }
+
+        // Subscribe to topics if needed
+        FirebaseMessaging.getInstance().subscribeToTopic("general")
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Log.d("CommeradesWalletApp", "Successfully subscribed to topic: general")
+                } else {
+                    Log.w("CommeradesWalletApp", "Failed to subscribe to topic: general", task.exception)
+                }
+            }
     }
 
     companion object {

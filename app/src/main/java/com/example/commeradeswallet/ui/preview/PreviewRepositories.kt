@@ -7,6 +7,7 @@ import com.example.commeradeswallet.data.repository.FoodRepository
 import com.example.commeradeswallet.data.repository.WalletRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import java.time.LocalDateTime
 
@@ -26,19 +27,42 @@ object MockWalletDao : WalletDao {
 }
 
 object MockOrderDao : OrderDao {
-    override fun getAllOrders(): Flow<List<Order>> = 
-        flowOf(emptyList())
-    
-    override fun getOrdersByUser(userId: String): Flow<List<Order>> = 
-        flowOf(emptyList())
-    
-    override suspend fun getOrderByCode(orderCode: String): Order? = null
-    
-    override suspend fun insertOrder(order: Order): Long = 1L
-    
-    override suspend fun updateOrder(order: Order) {}
-    
-    override suspend fun deleteOrder(order: Order) {}
+    private val orders = mutableListOf<Order>()
+
+    override fun getAllOrders(): Flow<List<Order>> = flow { emit(orders) }
+
+    override fun getOrdersByUser(userId: String): Flow<List<Order>> = flow {
+        emit(orders.filter { it.userId == userId })
+    }
+
+    override suspend fun getOrderByCode(orderCode: String): Order? =
+        orders.find { it.orderCode == orderCode }
+
+    override suspend fun insertOrder(order: Order) {
+        orders.add(order)
+    }
+
+    override suspend fun updateOrder(order: Order) {
+        val index = orders.indexOfFirst { it.id == order.id }
+        if (index != -1) {
+            orders[index] = order
+        }
+    }
+
+    override suspend fun deleteOrder(order: Order) {
+        orders.remove(order)
+    }
+
+    override suspend fun getOrderById(orderId: String): Order? =
+        orders.find { it.id == orderId }
+
+    override fun getOrdersByStatus(status: String): Flow<List<Order>> = flow {
+        emit(orders.filter { it.status.name == status })
+    }
+
+    override suspend fun deleteAllOrders() {
+        orders.clear()
+    }
 }
 
 // Create a factory function to get a WalletRepository with mock DAOs

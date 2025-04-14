@@ -43,17 +43,18 @@ import android.util.Log
 import androidx.compose.material.icons.filled.Star
 import com.example.commeradeswallet.data.AppDatabase
 import com.example.commeradeswallet.ui.viewmodel.AuthViewModelFactory
+import com.example.commeradeswallet.data.repository.AuthRepository
 
 @Composable
 fun AuthScreen(
     onNavigateToRegister: () -> Unit,
     onNavigateToHome: () -> Unit,
-    googleAuthClient: GoogleAuthClient = GoogleAuthClient(LocalContext.current),
     viewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(LocalContext.current))
 ) {
+    val context = LocalContext.current
+    val googleAuthClient = remember { GoogleAuthClient(context) }
     var isInitializing by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
 
     // Define launcher first
     val launcher = rememberLauncherForActivityResult(
@@ -89,7 +90,7 @@ fun AuthScreen(
                 }
                 launcher.launch(
                     IntentSenderRequest.Builder(
-                        signInIntentSender
+                        signInIntentSender ?: return@launch
                     ).build()
                 )
             } catch (e: Exception) {
@@ -101,9 +102,7 @@ fun AuthScreen(
     LaunchedEffect(Unit) {
         try {
             delay(1000)
-            val user = googleAuthClient.getSignedInUser()
-            Log.d("AuthScreen", "Initial user check: ${user != null}")
-            if (user != null) {
+            if (viewModel.authState.value is AuthViewModel.AuthState.Authenticated) {
                 Log.d("AuthScreen", "User already signed in, navigating to home")
                 onNavigateToHome()
             }
@@ -114,13 +113,18 @@ fun AuthScreen(
         }
     }
 
-    val state by viewModel.state.collectAsState()
+    val authState by viewModel.authState.collectAsState()
 
-    LaunchedEffect(state.isSignInSuccessful) {
-        Log.d("AuthScreen", "Sign in state changed: ${state.isSignInSuccessful}")
-        if (state.isSignInSuccessful) {
-            Log.d("AuthScreen", "Sign in successful, navigating to home")
-            onNavigateToHome()
+    LaunchedEffect(authState) {
+        when (authState) {
+            is AuthViewModel.AuthState.Authenticated -> {
+                Log.d("AuthScreen", "Authentication successful, navigating to home")
+                onNavigateToHome()
+            }
+            is AuthViewModel.AuthState.Error -> {
+                Log.e("AuthScreen", "Authentication error: ${(authState as AuthViewModel.AuthState.Error).message}")
+            }
+            else -> {}
         }
     }
 
@@ -251,7 +255,7 @@ fun AuthScreen(
         Button(
             onClick = {
                 if (validateInput(email, password)) {
-                    viewModel.signInWithEmail(email, password)
+                    viewModel.signIn(email, password)
                 }
             },
             modifier = Modifier
@@ -260,7 +264,7 @@ fun AuthScreen(
                 .height(50.dp),
             shape = RoundedCornerShape(12.dp)
         ) {
-            if (state.isLoading) {
+            if (authState is AuthViewModel.AuthState.Loading) {
                 CircularProgressIndicator(
                     color = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(24.dp)
@@ -312,13 +316,14 @@ fun AuthScreen(
     }
 
     // Show error dialog if needed
-    if (state.signInError != null) {
+    if (authState is AuthViewModel.AuthState.Error) {
+        val errorMessage = (authState as AuthViewModel.AuthState.Error).message
         AlertDialog(
-            onDismissRequest = { viewModel.resetState() },
+            onDismissRequest = { /* Dismiss dialog */ },
             title = { Text("Error") },
-            text = { Text(state.signInError!!) },
+            text = { Text(errorMessage) },
             confirmButton = {
-                TextButton(onClick = { viewModel.resetState() }) {
+                TextButton(onClick = { /* Dismiss dialog */ }) {
                     Text("OK")
                 }
             }

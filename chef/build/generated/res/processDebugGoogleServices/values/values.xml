@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="default_web_client_id" translatable="false">207405274264-fif1i3d3980282khh80tls75vgfmlib9.apps.googleusercontent.com</string>
+    <string name="gcm_defaultSenderId" translatable="false">207405274264</string>
+    <string name="google_api_key" translatable="false">AIzaSyAeHUhwL5K9pcft_0XV1poh6Trv2x6MhQc</string>
+    <string name="google_app_id" translatable="false">1:207405274264:android:fc4b2e0b19b7aa63066ced</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyAeHUhwL5K9pcft_0XV1poh6Trv2x6MhQc</string>
+    <string name="google_storage_bucket" translatable="false">commerades-wallet.firebasestorage.app</string>
+    <string name="project_id" translatable="false">commerades-wallet</string>
+</resources>

@@ -4,12 +4,14 @@ import android.content.Context
 import android.util.Log
 import androidx.startup.Initializer
 import com.example.commeradeswallet.data.model.FoodItem
+import com.example.commeradeswallet.data.repository.RoomFoodRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.example.commeradeswallet.ui.navigation.NavGraph
 
-class DatabaseInitializer : Initializer<AppDatabase> {
+class DatabaseInitializer(private val context: Context) : Initializer<AppDatabase> {
     override fun create(context: Context): AppDatabase {
         val database = AppDatabase.getDatabase(context)
         
@@ -20,7 +22,7 @@ class DatabaseInitializer : Initializer<AppDatabase> {
                 // Check if data already exists
                 if (foodDao.getFoodItemCount() == 0) {
                     Log.d("DatabaseInitializer", "Inserting initial food items")
-                    foodDao.insertAll(initialFoodItems)
+                    insertDefaultFoodItems(database)
                 }
             } catch (e: Exception) {
                 Log.e("DatabaseInitializer", "Error initializing database", e)
@@ -34,64 +36,78 @@ class DatabaseInitializer : Initializer<AppDatabase> {
         return emptyList()
     }
 
-    companion object {
-        private val initialFoodItems = listOf(
+    private suspend fun insertDefaultFoodItems(database: AppDatabase) {
+        val defaultItems = listOf(
             FoodItem(
+                id = "chapati",
                 name = "Chapati",
-                price = 15,
-                category = "Main Course",
+                price = 20,
+                category = "Breakfast",
                 imageUrl = "",
                 description = "Fresh homemade chapati",
                 isQuantifiedByNumber = true
             ),
             FoodItem(
+                id = "rice",
                 name = "Rice",
-                price = 30,
-                category = "Main Course",
+                price = 50,
+                category = "Lunch",
                 imageUrl = "",
                 description = "Steamed rice per serving",
                 isQuantifiedByNumber = false
             ),
             FoodItem(
+                id = "beans",
                 name = "Beans",
-                price = 20,
-                category = "Main Course",
+                price = 40,
+                category = "Lunch",
                 imageUrl = "",
-                description = "Well cooked beans",
+                description = "Cooked beans per serving",
                 isQuantifiedByNumber = false
             ),
             FoodItem(
-                name = "Githeri",
-                price = 45,
-                category = "Main Course",
+                id = "beef_stew",
+                name = "Beef Stew",
+                price = 120,
+                category = "Lunch",
                 imageUrl = "",
-                description = "Traditional githeri",
+                description = "Rich beef stew per serving",
                 isQuantifiedByNumber = false
             ),
             FoodItem(
+                id = "kales",
                 name = "Kales",
-                price = 15,
+                price = 30,
                 category = "Vegetables",
                 imageUrl = "",
-                description = "Fresh sukuma wiki",
+                description = "Fresh sukuma wiki per serving",
                 isQuantifiedByNumber = false
             ),
             FoodItem(
+                id = "cabbage",
                 name = "Cabbage",
-                price = 10,
+                price = 30,
                 category = "Vegetables",
                 imageUrl = "",
                 description = "Fresh cabbage per serving",
                 isQuantifiedByNumber = false
             ),
             FoodItem(
-                name = "Beef Stew",
-                price = 75,
-                category = "Stew",
+                id = "githeri",
+                name = "Githeri",
+                price = 60,
+                category = "Lunch",
                 imageUrl = "",
-                description = "Rich beef stew",
+                description = "Mixed beans and maize",
                 isQuantifiedByNumber = false
             )
         )
+
+        try {
+            database.foodDao().insertAll(defaultItems)
+            Log.d("DatabaseInitializer", "Successfully inserted default food items")
+        } catch (e: Exception) {
+            Log.e("DatabaseInitializer", "Error inserting default food items", e)
+        }
     }
 } 

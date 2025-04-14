@@ -5,12 +5,14 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "food_items")
 data class FoodItem(
-    @PrimaryKey(autoGenerate = true)
-    val id: Int = 0,
+    @PrimaryKey
+    val id: String,
     val name: String,
     val price: Int,
     val category: String,
     val imageUrl: String,
     val description: String,
-    val isQuantifiedByNumber: Boolean = false
+    val isQuantifiedByNumber: Boolean = false,
+    val isAvailable: Boolean = true,
+    val lastUpdated: Long = System.currentTimeMillis()
 ) 

@@ -1,122 +1,126 @@
 package com.example.commeradeswallet.data
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import com.example.commeradeswallet.data.model.*
 import com.example.commeradeswallet.data.repository.FirestoreRepository
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.time.LocalDateTime
 import java.security.MessageDigest
 
 class FirestoreInitializer(private val context: Context) {
     private val repository = FirestoreRepository()
     private val scope = CoroutineScope(Dispatchers.IO)
+    private val firestore = FirebaseFirestore.getInstance()
+    private val foodCollection = firestore.collection("food_items")
 
     fun initializeData() {
         scope.launch {
             try {
                 // Initialize food items
-                initializeFoodItems()
+                initializeFirestore()
                 Log.d("FirestoreInitializer", "Food items initialized successfully")
             } catch (e: Exception) {
-                Log.e("FirestoreInitializer", "Error initializing data", e)
+                Log.e("FirestoreInitializer", "Error initializing food items", e)
             }
         }
     }
 
-    private suspend fun initializeFoodItems() {
-        val foodItems = listOf(
+    private suspend fun initializeFirestore() {
+        try {
+            // Check if collection is empty
+            val snapshot = foodCollection.get().await()
+            if (snapshot.isEmpty) {
+                Log.d("FirestoreInitializer", "Initializing Firestore with default data")
+                insertDefaultFoodItems()
+            } else {
+                Log.d("FirestoreInitializer", "Firestore already initialized")
+            }
+        } catch (e: Exception) {
+            Log.e("FirestoreInitializer", "Error initializing Firestore", e)
+        }
+    }
+
+    private suspend fun insertDefaultFoodItems() {
+        val defaultItems = listOf(
             FoodItem(
+                id = "chapati",
                 name = "Chapati",
-                price = 15,
-                category = "Main Course",
-                imageUrl = "https://firebasestorage.googleapis.com/v0/b/commerades-wallet.appspot.com/o/food%2Fchapati.jpg",
+                price = 20,
+                category = "Breakfast",
+                imageUrl = "",
                 description = "Fresh homemade chapati",
                 isQuantifiedByNumber = true
             ),
             FoodItem(
+                id = "rice",
                 name = "Rice",
-                price = 30,
-                category = "Main Course",
-                imageUrl = "https://firebasestorage.googleapis.com/v0/b/commerades-wallet.appspot.com/o/food%2Frice.jpg",
+                price = 50,
+                category = "Lunch",
+                imageUrl = "",
                 description = "Steamed rice per serving",
                 isQuantifiedByNumber = false
             ),
             FoodItem(
+                id = "beans",
                 name = "Beans",
-                price = 20,
-                category = "Main Course",
-                imageUrl = "https://firebasestorage.googleapis.com/v0/b/commerades-wallet.appspot.com/o/food%2Fbeans.jpg",
-                description = "Well cooked beans",
+                price = 40,
+                category = "Lunch",
+                imageUrl = "",
+                description = "Cooked beans per serving",
                 isQuantifiedByNumber = false
             ),
             FoodItem(
-                name = "Githeri",
-                price = 45,
-                category = "Main Course",
-                imageUrl = "https://firebasestorage.googleapis.com/v0/b/commerades-wallet.appspot.com/o/food%2Fgitheri.jpg",
-                description = "Traditional githeri",
-                isQuantifiedByNumber = false
-            ),
-            FoodItem(
+                id = "beef_stew",
                 name = "Beef Stew",
-                price = 75,
-                category = "Stew",
-                imageUrl = "https://firebasestorage.googleapis.com/v0/b/commerades-wallet.appspot.com/o/food%2Fbeef_stew.jpg",
+                price = 120,
+                category = "Lunch",
+                imageUrl = "",
                 description = "Rich beef stew per serving",
                 isQuantifiedByNumber = false
             ),
             FoodItem(
-                name = "Chicken Stew",
-                price = 85,
-                category = "Stew",
-                imageUrl = "https://firebasestorage.googleapis.com/v0/b/commerades-wallet.appspot.com/o/food%2Fchicken_stew.jpg",
-                description = "Delicious chicken stew",
-                isQuantifiedByNumber = false
-            ),
-            FoodItem(
-                name = "Kales (Sukuma Wiki)",
-                price = 15,
+                id = "kales",
+                name = "Kales",
+                price = 30,
                 category = "Vegetables",
-                imageUrl = "https://firebasestorage.googleapis.com/v0/b/commerades-wallet.appspot.com/o/food%2Fkales.jpg",
+                imageUrl = "",
                 description = "Fresh sukuma wiki per serving",
                 isQuantifiedByNumber = false
             ),
             FoodItem(
+                id = "cabbage",
                 name = "Cabbage",
-                price = 10,
+                price = 30,
                 category = "Vegetables",
-                imageUrl = "https://firebasestorage.googleapis.com/v0/b/commerades-wallet.appspot.com/o/food%2Fcabbage.jpg",
+                imageUrl = "",
                 description = "Fresh cabbage per serving",
                 isQuantifiedByNumber = false
             ),
             FoodItem(
-                name = "Ugali",
-                price = 20,
-                category = "Main Course",
-                imageUrl = "https://firebasestorage.googleapis.com/v0/b/commerades-wallet.appspot.com/o/food%2Fugali.jpg",
-                description = "Traditional ugali per serving",
-                isQuantifiedByNumber = false
-            ),
-            FoodItem(
-                name = "Matumbo",
-                price = 65,
-                category = "Stew",
-                imageUrl = "https://firebasestorage.googleapis.com/v0/b/commerades-wallet.appspot.com/o/food%2Fmatumbo.jpg",
-                description = "Well-cooked matumbo stew",
+                id = "githeri",
+                name = "Githeri",
+                price = 60,
+                category = "Lunch",
+                imageUrl = "",
+                description = "Mixed beans and maize",
                 isQuantifiedByNumber = false
             )
         )
 
-        foodItems.forEach { foodItem ->
-            try {
-                repository.addFoodItem(foodItem)
-                Log.d("FirestoreInitializer", "Added food item: ${foodItem.name}")
-            } catch (e: Exception) {
-                Log.e("FirestoreInitializer", "Error adding food item: ${foodItem.name}", e)
+        try {
+            defaultItems.forEach { foodItem ->
+                foodCollection.document(foodItem.id).set(foodItem).await()
             }
+            Log.d("FirestoreInitializer", "Successfully inserted default food items")
+        } catch (e: Exception) {
+            Log.e("FirestoreInitializer", "Error inserting default food items", e)
         }
     }
 
@@ -127,7 +131,8 @@ class FirestoreInitializer(private val context: Context) {
         return digest.fold("") { str, it -> str + "%02x".format(it) }
     }
 
-    // This function can be called to create a test user with some sample transactions
+    // Public function to create test data
+    @RequiresApi(Build.VERSION_CODES.O)
     suspend fun createTestData(email: String, name: String) {
         try {
             // Create test user with hashed password
@@ -181,4 +186,4 @@ class FirestoreInitializer(private val context: Context) {
             Log.e("FirestoreInitializer", "Error creating test data", e)
         }
     }
-} 
+}
