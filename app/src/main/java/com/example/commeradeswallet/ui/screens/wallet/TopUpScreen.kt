@@ -19,17 +19,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.commeradeswallet.BuildConfig
-import com.example.commeradeswallet.data.mpesa.DarajaClient
-import com.example.commeradeswallet.data.mpesa.DarajaRepository
-import com.example.commeradeswallet.data.repository.MpesaRepository
-import com.example.commeradeswallet.data.repository.MpesaTransactionRepository
 import com.example.commeradeswallet.ui.viewmodel.MpesaViewModel
 import kotlinx.coroutines.delay
-import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,29 +35,6 @@ fun TopUpScreen(
     
     val mpesaState by viewModel.state.collectAsState()
     val transactionState by viewModel.transactionState.collectAsState()
-
-    // Function to format phone number to the required format
-    fun formatPhoneNumber(number: String): String {
-        // Remove any spaces, dashes, or other characters
-        val cleaned = number.replace(Regex("[^0-9]"), "")
-        
-        return when {
-            // If starts with 254, use as is
-            cleaned.startsWith("254") -> cleaned
-            // If starts with 0, replace with 254
-            cleaned.startsWith("0") -> "254${cleaned.substring(1)}"
-            // If starts with 7 or 1, add 254
-            cleaned.startsWith("7") || cleaned.startsWith("1") -> "254$cleaned"
-            // Otherwise return as is
-            else -> cleaned
-        }
-    }
-
-    // Function to validate phone number
-    fun validatePhoneNumber(number: String): Boolean {
-        val formatted = formatPhoneNumber(number)
-        return formatted.length == 12 && formatted.startsWith("254")
-    }
 
     // Process state changes
     LaunchedEffect(mpesaState) {
@@ -265,47 +233,4 @@ fun TopUpScreen(
             }
         }
     }
-}
-
-@Composable
-private fun createMpesaViewModel(): MpesaViewModel {
-    val context = LocalContext.current
-    
-    // Create HTTP client
-    val loggingInterceptor = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BODY
-    }
-    
-    val httpClient = OkHttpClient.Builder()
-        .addInterceptor(loggingInterceptor)
-        .connectTimeout(60, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
-        .build()
-    
-    // Create Retrofit API client
-    val retrofit = Retrofit.Builder()
-        .baseUrl("https://sandbox.safaricom.co.ke/")
-        .client(httpClient)
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-    
-    val darajaClient = retrofit.create(DarajaClient::class.java)
-    
-    // Create repositories
-    val darajaRepository = DarajaRepository(
-        client = darajaClient,
-        consumerKey = "i0Ci7KCr11HyeGDaVYfPbGE7ZcoYiyxsES4SlBabyCFgHGf3",
-        consumerSecret = "wvQsxgvlaFvvJu7sGw2rzIIiWXC5GwSIwMpSq7VWRRwkYx0kbs05OGhsTR2C3Wc7",
-        passKey = "MTc0Mzc5YmZiMjc5ZjlhYTliZGJjZjE1OGU5N2RkNzFhNDY3Y2QyZTBjODkzMDU5YjEwZjc4ZTZiNzJhZGExZWQyYzkxOTIwMjUwNDA2MDkyOTQ3",
-        businessShortCode = "174379",
-        callbackUrl = "https://mydomain.com/path"
-    )
-    
-    val mpesaRepository = MpesaRepository(darajaRepository)
-    val transactionRepository = MpesaTransactionRepository()
-    
-    return viewModel(
-        factory = MpesaViewModel.Factory(mpesaRepository, transactionRepository)
-    )
 } 

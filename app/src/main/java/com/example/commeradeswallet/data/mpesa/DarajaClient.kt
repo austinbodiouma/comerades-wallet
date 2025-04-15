@@ -9,9 +9,9 @@ import retrofit2.Response
 import retrofit2.http.*
 
 interface DarajaClient {
-    @GET("oauth/v1/generate")
+    @Headers("Cache-Control: no-cache")
+    @GET("oauth/v1/generate?grant_type=client_credentials")
     suspend fun getAccessToken(
-        @Query("grant_type") grantType: String = "client_credentials",
         @Header("Authorization") authorization: String
     ): Response<AccessTokenResponse>
 

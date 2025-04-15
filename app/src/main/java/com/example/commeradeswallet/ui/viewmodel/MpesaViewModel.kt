@@ -4,18 +4,26 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.commeradeswallet.data.model.TransactionType
 import com.example.commeradeswallet.data.mpesa.models.MpesaTransaction
 import com.example.commeradeswallet.data.mpesa.models.STKPushResponse
 import com.example.commeradeswallet.data.repository.MpesaRepository
 import com.example.commeradeswallet.data.repository.MpesaTransactionRepository
+import com.example.commeradeswallet.data.repository.WalletRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.example.commeradeswallet.utils.Resource
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import timber.log.Timber
+import javax.inject.Inject
 
-class MpesaViewModel(
+@HiltViewModel
+class MpesaViewModel @Inject constructor(
     private val mpesaRepository: MpesaRepository,
     private val transactionRepository: MpesaTransactionRepository,
+    private val walletRepository: WalletRepository,
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) : ViewModel() {
 
@@ -27,6 +35,7 @@ class MpesaViewModel(
 
     private var currentPhoneNumber: String = ""
     private var currentAmount: Int = 0
+    private var isTopUpRequest: Boolean = false
 
     val transactions = flow {
         auth.currentUser?.let { user ->
@@ -34,140 +43,121 @@ class MpesaViewModel(
         }
     }
 
-    fun initiateStk(phoneNumber: String, amount: Int) {
+    fun initiateStk(phoneNumber: String, amount: String, paymentReason: String) {
         viewModelScope.launch {
+            _transactionState.value = TransactionState.Loading
+            
             try {
-                _state.value = MpesaState.Loading
-
-                // Check if user is logged in
-                val currentUser = auth.currentUser
-                if (currentUser == null) {
-                    _state.value = MpesaState.Error("Please log in to continue")
-                    return@launch
-                }
-
-                currentPhoneNumber = phoneNumber
-                currentAmount = amount
-
-                val result = mpesaRepository.initiateSTKPush(
-                    phoneNumber = phoneNumber,
-                    amount = amount
-                )
-
-                result.fold(
-                    onSuccess = { response ->
-                        Log.d("MpesaViewModel", "STK push successful: $response")
-                        handleSuccessfulStkPush(response)
-                        _state.value = MpesaState.Success(response)
-                    },
-                    onFailure = { error ->
-                        Log.e("MpesaViewModel", "STK push failed", error)
-                        _state.value = MpesaState.Error(error.message ?: "Failed to initiate payment")
-                    }
-                )
-            } catch (e: Exception) {
-                Log.e("MpesaViewModel", "Exception during STK push", e)
-                _state.value = MpesaState.Error(e.message ?: "An unexpected error occurred")
-            }
-        }
-    }
-
-    private fun handleSuccessfulStkPush(response: STKPushResponse) {
-        viewModelScope.launch {
-            try {
-                val currentUser = auth.currentUser
-                if (currentUser == null) {
-                    _state.value = MpesaState.Error("User not logged in")
-                    return@launch
-                }
-
-                // Create transaction record
-                transactionRepository.createTransaction(
-                    userId = currentUser.uid,
-                    phoneNumber = currentPhoneNumber,
-                    amount = currentAmount.toDouble(),
-                    merchantRequestId = response.merchantRequestID,
-                    checkoutRequestId = response.checkoutRequestID
-                )
-
-                // Start polling for transaction status
-                pollTransactionStatus(response.checkoutRequestID)
-            } catch (e: Exception) {
-                _state.value = MpesaState.Error("Failed to create transaction record: ${e.message}")
-            }
-        }
-    }
-
-    private fun pollTransactionStatus(checkoutRequestId: String) {
-        viewModelScope.launch {
-            var attempts = 0
-            val maxAttempts = 10
-            val delayBetweenPolls = 5000L // 5 seconds
-
-            while (attempts < maxAttempts) {
-                try {
-                    val result = mpesaRepository.querySTKStatus(checkoutRequestId)
-                    result.fold(
-                        onSuccess = { response ->
-                            // Update transaction status in Firestore
-                            auth.currentUser?.let { user ->
-                                transactionRepository.updateTransactionStatus(
-                                    userId = user.uid,
-                                    checkoutRequestId = checkoutRequestId,
-                                    status = when {
-                                        response.resultCode == "0" -> "COMPLETED"
-                                        response.resultCode == null -> "PENDING"
-                                        else -> "FAILED"
-                                    },
-                                    resultCode = response.resultCode,
-                                    resultDesc = response.resultDesc
-                                )
-                            }
-
-                            when (response.resultCode) {
-                                "0" -> {
-                                    _transactionState.value = TransactionState.Success("Payment completed successfully")
-                                    return@launch // Exit polling on success
-                                }
-                                null -> {
-                                    // Transaction still pending, continue polling
-                                    attempts++
-                                    delay(delayBetweenPolls)
-                                }
-                                else -> {
-                                    _transactionState.value = TransactionState.Failed(response.resultDesc ?: "Payment failed")
-                                    return@launch // Exit polling on failure
-                                }
-                            }
-                        },
-                        onFailure = { error ->
-                            attempts++
-                            if (attempts >= maxAttempts) {
-                                _transactionState.value = TransactionState.Failed("Failed to check payment status after multiple attempts")
-                                // Update Firestore with timeout status
-                                auth.currentUser?.let { user ->
-                                    transactionRepository.updateTransactionStatus(
-                                        userId = user.uid,
-                                        checkoutRequestId = checkoutRequestId,
-                                        status = "TIMEOUT",
-                                        resultCode = null,
-                                        resultDesc = "Transaction status check timed out"
+                val result = mpesaRepository.initiateStk(phoneNumber, amount, paymentReason)
+                
+                when (result) {
+                    is Resource.Success -> {
+                        val responseCode = result.data?.responseCode
+                        
+                        if (responseCode == "0") {
+                            // Transaction initiated successfully
+                            _transactionState.value = TransactionState.Success("STK push sent successfully")
+                            
+                            // Don't update wallet balance here - it's premature
+                            // The balance should only be updated after the transaction is confirmed
+                            // updateWalletBalance(amount.toDouble())
+                            
+                            // Store the transaction info for later reference
+                            currentPhoneNumber = phoneNumber
+                            currentAmount = amount.toInt()
+                            isTopUpRequest = paymentReason == "WALLET_TOPUP"
+                            
+                            // Create transaction record with wallet top-up flag
+                            result.data?.let { response ->
+                                try {
+                                    transactionRepository.createTransaction(
+                                        userId = auth.currentUser?.uid ?: "",
+                                        phoneNumber = phoneNumber,
+                                        amount = amount.toDouble(),
+                                        merchantRequestId = response.merchantRequestID,
+                                        checkoutRequestId = response.checkoutRequestID,
+                                        isWalletTopUp = paymentReason == "WALLET_TOPUP"
                                     )
+                                } catch (e: Exception) {
+                                    Timber.e(e, "Error creating transaction record")
                                 }
-                            } else {
-                                delay(delayBetweenPolls)
                             }
+                        } else {
+                            _transactionState.value = TransactionState.Error(
+                                result.data?.responseDescription ?: "Failed to initiate transaction"
+                            )
                         }
-                    )
-                } catch (e: Exception) {
-                    attempts++
-                    if (attempts >= maxAttempts) {
-                        _transactionState.value = TransactionState.Failed("Error checking payment status: ${e.message}")
-                        break
                     }
-                    delay(delayBetweenPolls)
+                    is Resource.Error -> {
+                        _transactionState.value = TransactionState.Error(
+                            result.message ?: "An unknown error occurred"
+                        )
+                    }
+                    is Resource.Loading -> {
+                        _transactionState.value = TransactionState.Loading
+                    }
                 }
+            } catch (e: Exception) {
+                Timber.e(e, "Error initiating M-Pesa transaction")
+                _transactionState.value = TransactionState.Error("Failed to process payment: ${e.message}")
             }
+        }
+    }
+
+    fun checkTransactionStatus(checkoutRequestId: String) {
+        viewModelScope.launch {
+            _transactionState.value = TransactionState.Loading
+            try {
+                val transaction = transactionRepository.getTransactionByCheckoutRequestId(checkoutRequestId)
+                
+                if (transaction != null) {
+                    // If transaction is already completed and is a wallet top-up
+                    if (transaction.status == "COMPLETED" && transaction.isWalletTopUp) {
+                        _transactionState.value = TransactionState.Success("Transaction already completed")
+                        return@launch
+                    }
+                    
+                    // For transactions still pending, query M-Pesa for status
+                    val queryResult = mpesaRepository.queryTransactionStatus(checkoutRequestId)
+                    
+                    if (queryResult is Resource.Success && queryResult.data?.resultCode == "0") {
+                        // Update transaction status to COMPLETED
+                        transactionRepository.updateTransactionStatus(
+                            userId = transaction.userId,
+                            checkoutRequestId = checkoutRequestId,
+                            status = "COMPLETED",
+                            resultCode = queryResult.data.resultCode,
+                            resultDesc = queryResult.data.resultDesc
+                        )
+                        
+                        // If this is a wallet top-up, update balance
+                        if (transaction.isWalletTopUp) {
+                            updateWalletBalance(transaction.amount)
+                            _transactionState.value = TransactionState.Success("Wallet topped up successfully")
+                        } else {
+                            _transactionState.value = TransactionState.Success("Transaction completed successfully")
+                        }
+                    } else {
+                        _transactionState.value = TransactionState.Failed(
+                            queryResult?.message ?: "Failed to query transaction status"
+                        )
+                    }
+                } else {
+                    _transactionState.value = TransactionState.Failed("Transaction not found")
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Error checking transaction status")
+                _transactionState.value = TransactionState.Failed(e.localizedMessage ?: "An unknown error occurred")
+            }
+        }
+    }
+    
+    private suspend fun updateWalletBalance(amount: Double) {
+        try {
+            walletRepository.addFunds(amount)
+            Timber.d("Wallet balance updated successfully with amount: $amount")
+        } catch (e: Exception) {
+            Timber.e(e, "Error updating wallet balance")
         }
     }
 
@@ -187,15 +177,20 @@ class MpesaViewModel(
         object Idle : TransactionState()
         data class Success(val message: String) : TransactionState()
         data class Failed(val message: String) : TransactionState()
+        object Loading : TransactionState()
     }
 
     class Factory(
         private val mpesaRepository: MpesaRepository,
-        private val transactionRepository: MpesaTransactionRepository
+        private val transactionRepository: MpesaTransactionRepository,
+        private val walletRepository: WalletRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return MpesaViewModel(mpesaRepository, transactionRepository) as T
+            if (modelClass.isAssignableFrom(MpesaViewModel::class.java)) {
+                return MpesaViewModel(mpesaRepository, transactionRepository, walletRepository) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class")
         }
     }
 } 

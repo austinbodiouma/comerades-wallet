@@ -19,16 +19,19 @@ import com.example.commeradeswallet.ui.preview.ThemePreviews
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WalletScreen(
     onNavigateToTopUp: () -> Unit,
     onNavigateBack: () -> Unit,
-    viewModel: WalletViewModel = viewModel(factory = WalletViewModelFactory(LocalContext.current))
+    onNavigateToTransactionDetail: (String) -> Unit = {},
+    onNavigateToMpesaTopUp: () -> Unit = {},
+    walletViewModel: WalletViewModel = hiltViewModel()
 ) {
-    val balance by viewModel.balance.collectAsState(initial = 0.0)
-    val transactions by viewModel.transactions.collectAsState(initial = emptyList())
+    val balance by walletViewModel.balance.collectAsState(initial = 0.0)
+    val transactions by walletViewModel.transactions.collectAsState(initial = emptyList())
 
     Scaffold(
         topBar = {
@@ -48,10 +51,14 @@ fun WalletScreen(
                 .padding(padding)
         ) {
             // Balance Card
-            ElevatedCard(
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp)
+                    .padding(vertical = 8.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
             ) {
                 Column(
                     modifier = Modifier
@@ -60,21 +67,50 @@ fun WalletScreen(
                 ) {
                     Text(
                         text = "Current Balance",
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.labelMedium
                     )
                     Text(
                         text = "KES ${balance?.let { String.format("%.2f", it) } ?: "0.00"}",
                         style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.primary
+                        fontWeight = FontWeight.Bold
                     )
                     
-                    Button(
-                        onClick = onNavigateToTopUp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 16.dp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Top Up")
+                        Button(
+                            onClick = onNavigateToMpesaTopUp,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Top Up",
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("M-Pesa Top Up")
+                        }
+                        
+                        Spacer(modifier = Modifier.width(8.dp))
+                        
+                        Button(
+                            onClick = { /* Withdraw functionality */ },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowUpward,
+                                contentDescription = "Withdraw",
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Withdraw")
+                        }
                     }
                 }
             }
@@ -107,7 +143,9 @@ private fun WalletScreenPreview() {
         WalletScreen(
             onNavigateToTopUp = {},
             onNavigateBack = {},
-            viewModel = WalletViewModel.previewViewModel()
+            onNavigateToTransactionDetail = {},
+            onNavigateToMpesaTopUp = {},
+            walletViewModel = WalletViewModel.previewViewModel()
         )
     }
 } 

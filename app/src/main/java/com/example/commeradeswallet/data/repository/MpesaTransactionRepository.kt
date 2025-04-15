@@ -23,14 +23,16 @@ class MpesaTransactionRepository(
         phoneNumber: String,
         amount: Double,
         merchantRequestId: String,
-        checkoutRequestId: String
+        checkoutRequestId: String,
+        isWalletTopUp: Boolean = false
     ) {
         val transaction = MpesaTransaction(
             userId = userId,
             phoneNumber = phoneNumber,
             amount = amount,
             merchantRequestId = merchantRequestId,
-            checkoutRequestId = checkoutRequestId
+            checkoutRequestId = checkoutRequestId,
+            isWalletTopUp = isWalletTopUp
         )
         
         transactionsCollection.document(checkoutRequestId)

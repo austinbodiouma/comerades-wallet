@@ -11,7 +11,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.example.commeradeswallet.ui.navigation.NavGraph
 
-class DatabaseInitializer(private val context: Context) : Initializer<AppDatabase> {
+class DatabaseInitializer : Initializer<AppDatabase> {
+    private var context: Context? = null
+    
+    // Required no-arg constructor
+    constructor()
+    
+    // Secondary constructor for cases where context is passed explicitly
+    constructor(context: Context) {
+        this.context = context
+    }
+    
     override fun create(context: Context): AppDatabase {
         val database = AppDatabase.getDatabase(context)
         
