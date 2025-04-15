@@ -4,7 +4,7 @@
             "outputFile": "com.example.chef-mergeDebugResources-67:/values-ldltr-v21/values-ldltr-v21.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\austi\\.gradle\\caches\\transforms-4\\37083cd5a2e24f38f3943f7716b01385\\transformed\\appcompat-1.6.1\\res\\values-ldltr-v21\\values-ldltr-v21.xml",
+                    "source": "/Users/ngangadenis/.gradle/caches/transforms-4/37083cd5a2e24f38f3943f7716b01385/transformed/appcompat-1.6.1/res/values-ldltr-v21/values-ldltr-v21.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
