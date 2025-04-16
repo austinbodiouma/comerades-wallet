@@ -16,7 +16,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import android.util.Log
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -79,7 +79,7 @@ class MpesaViewModel @Inject constructor(
                                         isWalletTopUp = paymentReason == "WALLET_TOPUP"
                                     )
                                 } catch (e: Exception) {
-                                    Log.e("MpesaViewModel", "Error creating transaction record", e)
+                                    Timber.e(e, "Error creating transaction record")
                                 }
                             }
                         } else {
@@ -98,7 +98,7 @@ class MpesaViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                Log.e("MpesaViewModel", "Error initiating M-Pesa transaction", e)
+                Timber.e(e, "Error initiating M-Pesa transaction")
                 _transactionState.value = TransactionState.Error("Failed to process payment: ${e.message}")
             }
         }
@@ -146,7 +146,7 @@ class MpesaViewModel @Inject constructor(
                     _transactionState.value = TransactionState.Failed("Transaction not found")
                 }
             } catch (e: Exception) {
-                Log.e("MpesaViewModel", "Error checking transaction status", e)
+                Timber.e(e, "Error checking transaction status")
                 _transactionState.value = TransactionState.Failed(e.localizedMessage ?: "An unknown error occurred")
             }
         }
@@ -155,9 +155,9 @@ class MpesaViewModel @Inject constructor(
     private suspend fun updateWalletBalance(amount: Double) {
         try {
             walletRepository.addFunds(amount)
-            Log.d("MpesaViewModel", "Wallet balance updated successfully with amount: $amount")
+            Timber.d("Wallet balance updated successfully with amount: $amount")
         } catch (e: Exception) {
-            Log.e("MpesaViewModel", "Error updating wallet balance", e)
+            Timber.e(e, "Error updating wallet balance")
         }
     }
 

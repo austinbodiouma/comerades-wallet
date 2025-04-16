@@ -84,6 +84,4 @@ class PreviewFoodRepository : FoodRepository {
         flowOf(PreviewData.foodItems.filter { it.name.contains(query, ignoreCase = true) })
     
     override suspend fun refreshFoodItems() {}
-    
-    override suspend fun clearAndRefreshDatabase() {}
 } 
