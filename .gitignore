@@ -16,11 +16,11 @@ local.properties
 .qodo
 
 # Google Services (e.g. APIs or Firebase)
-google-services.json
-GoogleService-Info.plist
+# google-services.json - Keeping this file for team collaboration
+# GoogleService-Info.plist - Keeping this file for team collaboration
 
 # Sensitive API key files for Mpesa API
-/app/src/main/assets/api_keys.properties
+# /app/src/main/assets/api_keys.properties - Keeping this file for team collaboration
 
 # Keystore files
 *.jks
