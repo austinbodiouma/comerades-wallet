@@ -32,6 +32,8 @@ class DarajaRepository(
     private fun generatePassword(timestamp: String): String {
         val passwordString = "$businessShortCode$passKey$timestamp"
         Log.d(TAG, "Generating password with: shortcode=$businessShortCode, timestamp=$timestamp")
+        Log.d(TAG, "PassKey being used: $passKey")
+        Log.d(TAG, "Full password string before encoding: $passwordString")
         val password = Base64.encodeToString(passwordString.toByteArray(), Base64.NO_WRAP)
         Log.d(TAG, "Generated password: $password")
         return password
@@ -39,8 +41,11 @@ class DarajaRepository(
 
     private fun generateAuthorizationHeader(): String {
         val credentials = "$consumerKey:$consumerSecret"
-        Log.d(TAG, "Generating auth header with credentials length: ${credentials.length}")
+        Log.d(TAG, "Consumer Key: $consumerKey")
+        Log.d(TAG, "Consumer Secret: $consumerSecret")
+        Log.d(TAG, "Generating auth header with credentials: $credentials")
         val encodedCredentials = Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)
+        Log.d(TAG, "Encoded credentials: $encodedCredentials")
         return "Basic $encodedCredentials"
     }
 

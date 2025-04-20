@@ -13,3 +13,38 @@
 .externalNativeBuild
 .cxx
 local.properties
+.qodo
+
+# Google Services (e.g. APIs or Firebase)
+# google-services.json - Keeping this file for team collaboration
+# GoogleService-Info.plist - Keeping this file for team collaboration
+
+# Sensitive API key files for Mpesa API
+# /app/src/main/assets/api_keys.properties - Keeping this file for team collaboration
+
+# Keystore files
+*.jks
+*.keystore
+
+# External native build folder generated in Android Studio 3.5+
+/.idea/codeStyles
+/.idea/inspectionProfiles
+
+# Version control
+vcs.xml
+
+# Android Profiling
+*.hprof
+
+# Gradle files
+.gradle/
+build/
+
+# Android Studio generated files and folders
+/*/build/
+/*/out/
+/*/release/
+/*/debug/
+*build/
+*.apk
+*.aab

@@ -194,4 +194,23 @@ class WalletRepository(
             )).await()
         }
     }
+    
+    suspend fun addFunds(amount: Double) {
+        val userId = auth.currentUser?.uid ?: throw IllegalStateException("User not logged in")
+        
+        try {
+            // Process the transaction to add funds to the wallet
+            processTransaction(
+                userId = userId,
+                amount = amount,
+                type = TransactionType.DEPOSIT,
+                description = "Wallet top-up"
+            )
+            
+            Log.d("WalletRepository", "Successfully added $amount to wallet")
+        } catch (e: Exception) {
+            Log.e("WalletRepository", "Error adding funds to wallet", e)
+            throw e
+        }
+    }
 } 

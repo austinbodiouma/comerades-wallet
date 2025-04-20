@@ -9,5 +9,6 @@ data class MpesaTransaction(
     val status: String = "PENDING",
     val resultCode: String? = null,
     val resultDesc: String? = null,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val isWalletTopUp: Boolean = false
 ) 

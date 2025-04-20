@@ -122,7 +122,18 @@ fun NavGraph(
         composable("cart") {
             OrderSummaryScreen(
                 onNavigateBack = { navController.navigateUp() },
-                onCheckout = { /* TODO: Implement checkout */ },
+                onCheckout = { 
+                    // Clear cart
+                    cartViewModel.clearCart()
+                    
+                    // Navigate back to dashboard
+                    navController.navigate("dashboard") {
+                        popUpTo("dashboard") { inclusive = true }
+                    }
+                    
+                    // Show success message
+                    // You can implement a snackbar or toast here if you want
+                },
                 cartViewModel = cartViewModel
             )
         }
